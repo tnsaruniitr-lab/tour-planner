@@ -72,14 +72,21 @@ export default function ActualToursPanel({
     toursForDate.length > 0 && toursForDate.every((t) => travelOf(t) != null);
 
   // Shift-length distribution — shift hours rounded UP to the next whole hour.
-  const buckets = {};
+  const bucketTours = {};
   for (const t of toursForDate) {
     const h = Math.ceil((t.shiftDuration || 0) / 60);
-    buckets[h] = (buckets[h] || 0) + 1;
+    (bucketTours[h] = bucketTours[h] || []).push(t);
   }
-  const bucketHours = Object.keys(buckets)
+  const bucketHours = Object.keys(bucketTours)
     .map(Number)
     .sort((a, b) => b - a);
+  const colorByKey = {};
+  toursForDate.forEach((t, i) => {
+    colorByKey[t.key] = clusterColor(i);
+  });
+  const allKeys = toursForDate.map((t) => t.key);
+  const allVisible = toursForDate.every((t) => !hiddenTours[t.key]);
+  const anyVisible = toursForDate.some((t) => !hiddenTours[t.key]);
 
   const renderRow = ({ t, i }) => (
     <label className="legend-item" key={t.key}>
@@ -282,22 +289,40 @@ export default function ActualToursPanel({
           )}
 
           <div className="tour-group-title">Shift length distribution</div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Shift length</th>
-                <th>Shifts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bucketHours.map((h) => (
-                <tr key={h}>
-                  <td>{h}h</td>
-                  <td>{buckets[h]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <label className="legend-item">
+            <input
+              type="checkbox"
+              ref={(el) => {
+                if (el) el.indeterminate = anyVisible && !allVisible;
+              }}
+              checked={allVisible}
+              onChange={() => onSetGroupVisible(allKeys, !allVisible)}
+            />
+            <span>
+              <b>Select all</b> ({toursForDate.length})
+            </span>
+          </label>
+          {bucketHours.map((h) => (
+            <div className="shift-row" key={h}>
+              <span className="shift-len">{h}h</span>
+              <span className="shift-chips">
+                {bucketTours[h].map((t) => (
+                  <label className="shift-chip" key={t.key} title={t.nurseName}>
+                    <input
+                      type="checkbox"
+                      checked={!hiddenTours[t.key]}
+                      onChange={() => onToggleTour(t.key)}
+                    />
+                    <span
+                      className="dot"
+                      style={{ background: colorByKey[t.key] }}
+                    />
+                    {t.shortId}
+                  </label>
+                ))}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 

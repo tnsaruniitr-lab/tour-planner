@@ -213,6 +213,10 @@ Append a new entry whenever you change the app, then commit.
 - **v0.9** — Actual-tours: select-all / unselect-all master checkbox in each
   of the Morning and Evening group headers (with an indeterminate state when
   a group is partially selected).
+- **v0.10** — Shift-length distribution made interactive: each shift-length
+  row lists its tours as colour-dotted ID checkboxes (default all on) with a
+  "Select all" master; toggling them shows/hides routes on the map. Shares
+  visibility state with the Morning/Evening checkboxes.
 
 ---
 

@@ -333,6 +333,41 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   font-weight: 600;
   color: var(--accent);
 }
+
+.shift-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.shift-len {
+  flex: 0 0 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.shift-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.shift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.shift-chip input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+.shift-chip .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 9px;
+}
 .swatch {
   width: 12px; height: 12px;
   border-radius: 50%;
