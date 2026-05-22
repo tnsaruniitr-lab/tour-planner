@@ -36,6 +36,13 @@ export default function ActualToursPanel({
   tourTravel,
   onComputeEfficiency,
   effComputing,
+  staffMode,
+  onStaffMode,
+  reForm,
+  onReField,
+  onReassemble,
+  reassembling,
+  reassembled,
 }) {
   const [effType, setEffType] = useState('actual');
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
@@ -211,6 +218,121 @@ export default function ActualToursPanel({
               ))}
             </select>
           </div>
+        </div>
+      )}
+
+      {toursForDate.length > 0 && (
+        <div className="section">
+          <div className="section-title">Re-assemble into circular tours</div>
+          <p className="note">
+            Re-plan the selected day's visits into clean circular tours —
+            morning and evening kept separate, 2-visit patients kept with one
+            nurse ≥ the gap apart.
+          </p>
+          <div className="field">
+            <label>Staffing</label>
+            <select
+              value={staffMode}
+              onChange={(e) => onStaffMode(e.target.value)}
+            >
+              <option value="file">Same nurses &amp; shifts as file</option>
+              <option value="uniform">Uniform shifts</option>
+              <option value="fewest">Fewest nurses</option>
+            </select>
+          </div>
+          {staffMode === 'uniform' && (
+            <>
+              <div className="row">
+                <div className="field">
+                  <label>Morning shift (h)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={reForm.mHours}
+                    onChange={(e) => onReField('mHours', e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Morning nurses</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={reForm.mCount}
+                    onChange={(e) => onReField('mCount', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="field">
+                  <label>Evening shift (h)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={reForm.eHours}
+                    onChange={(e) => onReField('eHours', e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Evening nurses</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={reForm.eCount}
+                    onChange={(e) => onReField('eCount', e.target.value)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+          {staffMode === 'fewest' && (
+            <div className="field">
+              <label>Max shift length (h)</label>
+              <input
+                type="number"
+                min="1"
+                step="0.5"
+                value={reForm.maxHours}
+                onChange={(e) => onReField('maxHours', e.target.value)}
+              />
+            </div>
+          )}
+          <div className="field">
+            <label>Min gap (hours)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={reForm.gapHours}
+              onChange={(e) => onReField('gapHours', e.target.value)}
+            />
+          </div>
+          <button
+            className="btn-go"
+            onClick={onReassemble}
+            disabled={reassembling}
+          >
+            {reassembling ? 'Re-assembling…' : 'Re-assemble'}
+          </button>
+          {reassembled && (
+            <div className="summary" style={{ marginTop: 10 }}>
+              <div className="stat">
+                <span>Morning tours</span>
+                <b>{reassembled.morningCount}</b>
+              </div>
+              <div className="stat">
+                <span>Evening tours</span>
+                <b>{reassembled.eveningCount}</b>
+              </div>
+              <div className="stat">
+                <span>Patients re-planned</span>
+                <b>
+                  {reassembled.morningPatients + reassembled.eveningPatients}
+                </b>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

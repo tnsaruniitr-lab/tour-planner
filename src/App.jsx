@@ -24,6 +24,7 @@ import {
   saveTourTravel,
   clearTourStore,
 } from './lib/tourStore';
+import { reassembleDay } from './lib/reassemble';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -82,6 +83,17 @@ export default function App() {
   const [amPmCutoff, setAmPmCutoff] = useState('12:00');
   const [tourTravel, setTourTravel] = useState(loadTourTravel);
   const [effComputing, setEffComputing] = useState(false);
+  const [staffMode, setStaffMode] = useState('file');
+  const [reForm, setReForm] = useState({
+    gapHours: 3,
+    mHours: 6,
+    mCount: 8,
+    eHours: 5,
+    eCount: 4,
+    maxHours: 8,
+  });
+  const [reassembled, setReassembled] = useState(null);
+  const [reassembling, setReassembling] = useState(false);
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -284,6 +296,32 @@ export default function App() {
   function onSelectDate(date) {
     setSelectedDate(date);
     setSelectedTourKey(ALL_TOURS);
+    setReassembled(null);
+  }
+
+  function onReField(name, value) {
+    setReForm((f) => ({ ...f, [name]: value }));
+  }
+
+  async function onReassemble() {
+    setReassembling(true);
+    try {
+      const result = await reassembleDay(toursForDate, {
+        cutoffMin: hhmmToMin(amPmCutoff),
+        mode: staffMode,
+        gapMin: Math.round((parseFloat(reForm.gapHours) || 3) * 60),
+        mHours: parseFloat(reForm.mHours) || 6,
+        mCount: parseInt(reForm.mCount, 10) || 1,
+        eHours: parseFloat(reForm.eHours) || 5,
+        eCount: parseInt(reForm.eCount, 10) || 1,
+        maxHours: parseFloat(reForm.maxHours) || 8,
+      });
+      setReassembled(result);
+    } catch {
+      setReassembled(null);
+    } finally {
+      setReassembling(false);
+    }
   }
 
   async function onComputeEfficiency() {
@@ -315,6 +353,7 @@ export default function App() {
     setToursErr(false);
     setHiddenTours({});
     setTourTravel({});
+    setReassembled(null);
   }
 
   function onToggleTour(key) {
@@ -393,41 +432,62 @@ export default function App() {
             tourTravel={tourTravel}
             onComputeEfficiency={onComputeEfficiency}
             effComputing={effComputing}
+            staffMode={staffMode}
+            onStaffMode={setStaffMode}
+            reForm={reForm}
+            onReField={onReField}
+            onReassemble={onReassemble}
+            reassembling={reassembling}
+            reassembled={reassembled}
           />
         )}
       </div>
 
       <div className="map-area">
-        {appMode === 'plan' && plan && plan.mode === 'weekly' && (
-          <div className="day-tabs">
-            {plan.dayOrder.map((d) => {
-              const n = plan.days[d].clusters.reduce(
-                (s, c) => s + c.stops.length,
-                0
-              );
-              return (
-                <button
-                  key={d}
-                  className={d === activeDay ? 'active' : ''}
-                  onClick={() => setActiveDay(d)}
-                >
-                  {d} ({n})
-                </button>
-              );
-            })}
+        <div className="map-pane">
+          {appMode === 'plan' && plan && plan.mode === 'weekly' && (
+            <div className="day-tabs">
+              {plan.dayOrder.map((d) => {
+                const n = plan.days[d].clusters.reduce(
+                  (s, c) => s + c.stops.length,
+                  0
+                );
+                return (
+                  <button
+                    key={d}
+                    className={d === activeDay ? 'active' : ''}
+                    onClick={() => setActiveDay(d)}
+                  >
+                    {d} ({n})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {appMode === 'actual' && reassembled && (
+            <div className="map-label">Actual tours</div>
+          )}
+          <MapView
+            dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
+            showZones={appMode === 'plan'}
+          />
+          {appMode === 'plan' && !plan && (
+            <div className="map-empty">
+              Load patients, set your shifts, then press GO
+            </div>
+          )}
+          {appMode === 'actual' && !tourDayPlan && (
+            <div className="map-empty">Upload tour CSV files to begin</div>
+          )}
+        </div>
+        {appMode === 'actual' && reassembled && (
+          <div className="map-pane">
+            <div className="map-label">Re-assembled — circular tours</div>
+            <MapView
+              dayPlan={{ clusters: reassembled.clusters }}
+              showZones={true}
+            />
           </div>
-        )}
-        <MapView
-          dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
-          showZones={appMode === 'plan'}
-        />
-        {appMode === 'plan' && !plan && (
-          <div className="map-empty">
-            Load patients, set your shifts, then press GO
-          </div>
-        )}
-        {appMode === 'actual' && !tourDayPlan && (
-          <div className="map-empty">Upload tour CSV files to begin</div>
         )}
       </div>
     </div>

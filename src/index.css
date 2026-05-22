@@ -377,12 +377,34 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 /* ---------- Map area ---------- */
 .map-area {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.map-pane {
+  flex: 1;
   position: relative;
+  min-height: 0;
+}
+.map-pane + .map-pane {
+  border-top: 3px solid var(--line);
 }
 .map-area .leaflet-container {
   height: 100%;
   width: 100%;
   background: #eef0f3;
+}
+.map-label {
+  position: absolute;
+  top: 10px;
+  left: 52px;
+  z-index: 600;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .day-tabs {

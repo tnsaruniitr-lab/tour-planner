@@ -223,6 +223,14 @@ Append a new entry whenever you change the app, then commit.
   file's actual visit timeline (so it counts real gap/idle time). The
   Morning/Evening summary table has an OSRM column and an Actual column; the
   per-tour table has an OSRM/Actual toggle.
+- **v0.12** — "Re-assemble into circular tours": in Actual-tours mode, re-plan
+  the selected day's actual visits through the planner into clean circular
+  tours (`lib/reassemble.js`). Morning and evening pools planned separately
+  and never mixed; a patient with visits in both periods is kept split;
+  repeat visits in a period stay with one nurse ≥ the gap apart; start times
+  not pinned. Three staffing modes: same nurses/shifts as the file, uniform
+  shifts, or fewest nurses. The result is drawn on a **second map stacked
+  below** the actual one for side-by-side comparison.
 
 ---
 
