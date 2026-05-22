@@ -233,6 +233,14 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   text-decoration: underline;
 }
 .link-btn:hover { color: var(--accent-dark); }
+
+.netchange {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  color: var(--warn);
+}
+.netchange.zero { color: var(--ok); }
 .status {
   font-size: 12px;
   padding: 8px 10px;

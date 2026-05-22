@@ -10,7 +10,7 @@ import {
   clearSavedPatients,
 } from './lib/patientStore';
 import { geocodePatients } from './lib/geocode';
-import { buildPlan } from './lib/pipeline';
+import { buildPlan, planDay } from './lib/pipeline';
 import { hhmmToMin } from './lib/schedule';
 import {
   parseActualTours,
@@ -36,6 +36,7 @@ const DEFAULT_FORM = {
   shiftEnd: '14:00',
   nurses: 4,
   maxShiftHours: 8,
+  targetUtil: 88,
   gapHours: 3,
   bufferPct: 35,
 };
@@ -60,6 +61,19 @@ async function fetchSamplePatients() {
 
 function fmtHours(h) {
   return (Number.isInteger(h) ? h : Number(h.toFixed(2))) + 'h';
+}
+
+// Group a planned day's tours into an editable hours×count roster,
+// bucketed to the nearest half-hour.
+function rosterFromClusters(clusters) {
+  const byBucket = {};
+  for (const c of clusters) {
+    const hrs = Math.round(c.shiftLengthMin / 30) / 2;
+    byBucket[hrs] = (byBucket[hrs] || 0) + 1;
+  }
+  return Object.entries(byBucket)
+    .map(([hours, count]) => ({ hours: Number(hours), count }))
+    .sort((a, b) => b.hours - a.hours);
 }
 
 function sortTours(list) {
@@ -91,6 +105,11 @@ export default function App() {
   const [statusErr, setStatusErr] = useState(false);
   const [plan, setPlan] = useState(null);
   const [activeDay, setActiveDay] = useState('Day');
+  // Manual per-day shift adjustment.
+  const [planSettings, setPlanSettings] = useState(null);
+  const [dayRosters, setDayRosters] = useState({});
+  const [dayRosterBase, setDayRosterBase] = useState({});
+  const [replanningDay, setReplanningDay] = useState(false);
 
   // ---- Visualiser state ----
   const [tourRows, setTourRows] = useState(loadTourRows);
@@ -193,6 +212,8 @@ export default function App() {
     setPlan(null);
     setStatusMsg('');
     setStatusErr(false);
+    setDayRosters({});
+    setDayRosterBase({});
   }
 
   function onModeChange(m) {
@@ -300,6 +321,10 @@ export default function App() {
         settings.auto = true;
         settings.maxShiftMin = maxShiftMin;
         settings.startMin = hhmmToMin(form.shiftStart);
+        settings.targetUtil = Math.min(
+          1,
+          Math.max(0.6, (parseFloat(form.targetUtil) || 88) / 100)
+        );
       } else {
         const shifts = buildShifts();
         if (!shifts.length) throw new Error('Add at least one shift.');
@@ -323,6 +348,18 @@ export default function App() {
       setActiveDay(firstDay);
       setPlan(result);
 
+      // Seed the per-day shift editor from the fresh plan.
+      setPlanSettings(settings);
+      const rosters = {};
+      const bases = {};
+      for (const d of result.dayOrder) {
+        const rows = rosterFromClusters(result.days[d]?.clusters || []);
+        rosters[d] = rows;
+        bases[d] = rows.reduce((s, r) => s + r.hours * 60 * r.count, 0);
+      }
+      setDayRosters(rosters);
+      setDayRosterBase(bases);
+
       const tourCount = result.dayOrder.reduce(
         (s, d) => s + result.days[d].clusters.length,
         0
@@ -339,6 +376,73 @@ export default function App() {
       setStatusErr(true);
     } finally {
       setRunning(false);
+    }
+  }
+
+  // ---- Manual per-day shift adjustment ----
+  function onDayRosterChange(i, key, value) {
+    setDayRosters((r) => ({
+      ...r,
+      [activeDay]: (r[activeDay] || []).map((row, idx) =>
+        idx === i ? { ...row, [key]: value } : row
+      ),
+    }));
+  }
+
+  function onAddDayShift() {
+    setDayRosters((r) => ({
+      ...r,
+      [activeDay]: [...(r[activeDay] || []), { hours: 8, count: 1 }],
+    }));
+  }
+
+  function onRemoveDayShift(i) {
+    setDayRosters((r) => ({
+      ...r,
+      [activeDay]: (r[activeDay] || []).filter((_, idx) => idx !== i),
+    }));
+  }
+
+  async function onReplanDay() {
+    const day = activeDay;
+    const rows = dayRosters[day] || [];
+    const dayPatients = plan?.days?.[day]?.patients || [];
+    if (!dayPatients.length) return;
+
+    const startMin = hhmmToMin(form.shiftStart);
+    const shifts = [];
+    for (const row of rows) {
+      const count = Math.max(0, Math.round(Number(row.count) || 0));
+      const lengthMin = Math.round((Number(row.hours) || 0) * 60);
+      for (let i = 0; i < count; i++) {
+        shifts.push({ startMin, lengthMin, label: fmtHours(Number(row.hours) || 0) });
+      }
+    }
+    if (!shifts.length || shifts.some((s) => s.lengthMin <= 0)) {
+      setStatusMsg('Add at least one shift with a positive length to replan.');
+      setStatusErr(true);
+      return;
+    }
+
+    setReplanningDay(true);
+    setStatusErr(false);
+    setStatusMsg(`Replanning ${day}…`);
+    try {
+      const dayResult = await planDay(dayPatients, {
+        ...planSettings,
+        auto: false,
+        shifts,
+      });
+      dayResult.patients = dayPatients;
+      setPlan((p) => ({ ...p, days: { ...p.days, [day]: dayResult } }));
+      setStatusMsg(
+        `Replanned ${day} into ${dayResult.clusters.length} tour(s).`
+      );
+    } catch (err) {
+      setStatusMsg(err.message || 'Replan failed.');
+      setStatusErr(true);
+    } finally {
+      setReplanningDay(false);
     }
   }
 
@@ -502,6 +606,14 @@ export default function App() {
             statusErr={statusErr}
             plan={plan}
             activeDayPlan={activeDayPlan}
+            dayName={activeDay}
+            dayRoster={dayRosters[activeDay]}
+            dayRosterBaseMin={dayRosterBase[activeDay]}
+            onDayRosterChange={onDayRosterChange}
+            onAddDayShift={onAddDayShift}
+            onRemoveDayShift={onRemoveDayShift}
+            onReplanDay={onReplanDay}
+            replanningDay={replanningDay}
           />
         ) : (
           <ActualToursPanel

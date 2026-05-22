@@ -20,18 +20,20 @@ function fmtHours(h) {
 }
 
 // Auto mode, step 1: how many nurses does this day need?
-// The fewest whose shifts can hold the day's service load — a shift's
-// usable *service* capacity is its length × SERVICE_SHARE (the rest is
-// reserved for travel). No buffer beyond that.
+// Sized against the target utilisation — a shift's usable service capacity
+// is its length × targetUtil × SERVICE_SHARE. The spare capacity beyond
+// the bare minimum becomes the shift buffer and gives the clustering room
+// to keep zones compact and round.
 function autoShifts(withLoad, settings) {
   const totalLoad = withLoad.reduce((s, p) => s + p.load, 0);
   if (totalLoad <= 0) return [];
 
   const maxLen = settings.maxShiftMin;
-  const n = Math.max(1, Math.ceil(totalLoad / (maxLen * SERVICE_SHARE)));
+  const serviceShare = settings.targetUtil * SERVICE_SHARE;
+  const n = Math.max(1, Math.ceil(totalLoad / (maxLen * serviceShare)));
 
   // Provisional full-length shifts — each tour's shift is trimmed to its
-  // own working span afterwards (fitShiftToCluster).
+  // own workload afterwards (fitShiftToCluster).
   return Array.from({ length: n }, () => ({
     startMin: settings.startMin,
     lengthMin: maxLen,
@@ -39,17 +41,22 @@ function autoShifts(withLoad, settings) {
   }));
 }
 
-// Auto mode, step 2: once a tour is built, set its shift to exactly the
-// nurse's working span — care + travel (plus any unavoidable wait between
-// one patient's repeat visits). No idle buffer is added.
+// Auto mode, step 2: once a tour is built, size its shift to its workload
+// padded to the target utilisation — but never shorter than the tour's
+// actual span, so a wait between a patient's repeat visits cannot force an
+// overflow. The padding is the deliberate shift buffer.
 function fitShiftToCluster(cluster, settings) {
   const stops = cluster.stops;
   const span = stops.length
     ? stops[stops.length - 1].depart - cluster.shiftStartMin
     : cluster.workingMin;
+  const fitted = Math.max(
+    Math.round(cluster.workingMin / settings.targetUtil),
+    span
+  );
   const lengthMin = Math.min(
     settings.maxShiftMin,
-    Math.max(MIN_SHIFT_MIN, Math.round(span))
+    Math.max(MIN_SHIFT_MIN, fitted)
   );
   return {
     ...cluster,
@@ -144,7 +151,10 @@ function dayMetrics(clusters) {
   };
 }
 
-async function planDay(patients, settings) {
+// Plan one day's patients with the given settings. Exported so a single
+// day can be re-planned in isolation (manual shift adjustments) without
+// disturbing the rest of the week.
+export async function planDay(patients, settings) {
   const withLoad = patients.map((p) => ({
     ...p,
     load: p.visitsPerDay * p.serviceTime,
@@ -217,9 +227,17 @@ export async function buildPlan(patients, mode, settings) {
     const days = {};
     for (const d of dayOrder) {
       days[d] = await planDay(byDay[d], settings);
+      // Keep the day's patient list so a single day can be re-planned.
+      days[d].patients = byDay[d];
     }
     if (!dayOrder.length) {
-      days.Mon = { clusters: [], unassigned: [], metrics: null, shortfallMin: 0 };
+      days.Mon = {
+        clusters: [],
+        unassigned: [],
+        metrics: null,
+        shortfallMin: 0,
+        patients: [],
+      };
     }
     return {
       mode,
@@ -228,9 +246,11 @@ export async function buildPlan(patients, mode, settings) {
       infeasible,
     };
   }
+  const dayResult = await planDay(patients, settings);
+  dayResult.patients = patients;
   return {
     mode,
-    days: { Day: await planDay(patients, settings) },
+    days: { Day: dayResult },
     dayOrder: ['Day'],
     infeasible: [],
   };

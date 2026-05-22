@@ -98,13 +98,18 @@ cluster → route → schedule → render.
   "Clear saved" forgets it.
 
 - **Capacity modes:**
-  - *Auto* — you give only a max shift length; the tool uses the fewest
-    nurses that fit and sizes each shift to exactly its tour's working span
-    (care + travel, no idle buffer). Outputs a realistic, varied roster per
+  - *Auto* — you give a max shift length and a **target utilisation**; the
+    tool sizes the nurse count and each shift to hit that utilisation,
+    leaving the rest as shift buffer. Lower the % for more buffer (and
+    rounder zones), 100% for none. Outputs a realistic, varied roster per
     day. This is the default.
   - *Uniform* — one shift window + a fixed nurse count.
   - *Roster* — a table of `nurses × hours × start time`; tours sized to each
     shift.
+- **Adjust shifts** — after a plan is built, the selected day's roster is
+  shown as an editable `hours × count` table. Edit it (a net-change meter
+  tracks the delta vs the auto plan; aim for 0 to redistribute without
+  changing total capacity) and "Replan" re-runs just that day.
 - **Weekly** runs a 7-day operating week. Day choice is *weekday-preferred*:
   patients needing ≤5 days/week land on Mon–Fri only; 6-day patients also get
   Saturday; 7-day patients get the whole week. So Sat/Sun only ever carry the
@@ -215,13 +220,13 @@ tour totals.
 
 8a. **Auto roster** (`pipeline.js`, `autoShifts` + `fitShiftToCluster`) —
    when no roster is given, the planner derives one per day. *Step 1:* the
-   fewest nurses that fit — `n = ceil(totalServiceLoad / (maxShift ×
-   SERVICE_SHARE))` (a shift's service capacity is its length less the
-   travel reserve). *Step 2:* cluster into `n` zones, then set each tour's
-   shift to its own working span — care + travel, plus any unavoidable wait
-   between a patient's repeat visits — floored at 3h, capped at the max.
-   No idle buffer is added, so a tour that needs more than the max shift is
-   flagged rather than padded.
+   nurse count `n = ceil(totalServiceLoad / (maxShift × targetUtil ×
+   SERVICE_SHARE))` — the target utilisation sets how much spare capacity
+   (the buffer) to leave; that spare also gives the clustering room for
+   rounder zones. *Step 2:* cluster into `n` zones, then size each tour's
+   shift to its workload padded to the target utilisation — but never below
+   the tour's actual span — floored at 3h, capped at the max. The roster is
+   then editable per day (`planDay` is exported so one day can be re-run).
 
 9. **Re-assembly** (`reassemble.js`) — actual visits split into morning/evening
    pools (shift-start vs an AM/PM cutoff), each pool → planner-patients →
@@ -246,11 +251,10 @@ tour totals.
   same nurse.
 - **Roster** uses heterogeneous capacities; biggest zone → longest shift.
 - **Auto mode** answers "what would it take?" — the agency need not know its
-  staffing in advance. It uses the fewest nurses that fit and sizes each
-  shift to exactly its tour's care + travel time (no idle buffer), so the
-  output roster is believable (varied shift lengths) rather than `n`
-  identical full shifts. Day efficiency therefore reports only care, travel
-  and working time — there is no paid-vs-working gap to show.
+  staffing in advance. A **target-utilisation** dial sets the shift buffer:
+  it pads shifts for over-runs *and* gives the clustering room to keep zones
+  round (less buffer ⇒ fewer, fuller, messier circles). The derived roster
+  can then be hand-tuned per day via the Adjust-shifts table.
 - **Two efficiency definitions** kept side by side — OSRM (theoretical) and
   Actual (from recorded times, counts real waiting).
 - **Cap slack + tight circle radius** — perfectly circular, non-overlapping,
@@ -328,6 +332,11 @@ Append an entry whenever you change the app, then commit.
   "Target utilisation" input is gone; the Day efficiency panel drops "Paid
   hours" and "Utilisation" (there is no paid-vs-working gap) and the per-tour
   legend drops its utilisation %.
+- **v0.19** — The buffer returns as an editable **Target utilisation** dial
+  (default 88%) — it pads shifts *and* gives the clustering room for rounder
+  zones. New per-day **Adjust shifts** table: edit the roster's hours×count,
+  watch a net-change meter, and "Replan" re-runs just that day. Day
+  efficiency shows Paid hours, Shift buffer and Utilisation again.
 
 ---
 

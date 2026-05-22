@@ -46,6 +46,14 @@ export default function ControlPanel({
   statusErr,
   plan,
   activeDayPlan,
+  dayName,
+  dayRoster,
+  dayRosterBaseMin,
+  onDayRosterChange,
+  onAddDayShift,
+  onRemoveDayShift,
+  onReplanDay,
+  replanningDay,
 }) {
   const clusters = activeDayPlan?.clusters || [];
   const unassigned = activeDayPlan?.unassigned || [];
@@ -143,16 +151,29 @@ export default function ControlPanel({
         </div>
 
         {capacityMode === 'auto' ? (
-          <div className="row" style={{ marginTop: 10 }}>
-            <div className="field">
-              <label>Max shift length (h)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.5"
-                value={form.maxShiftHours}
-                onChange={(e) => onField('maxShiftHours', e.target.value)}
-              />
+          <>
+            <div className="row" style={{ marginTop: 10 }}>
+              <div className="field">
+                <label>Max shift length (h)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  value={form.maxShiftHours}
+                  onChange={(e) => onField('maxShiftHours', e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Target utilisation (%)</label>
+                <input
+                  type="number"
+                  min="60"
+                  max="100"
+                  step="1"
+                  value={form.targetUtil}
+                  onChange={(e) => onField('targetUtil', e.target.value)}
+                />
+              </div>
             </div>
             <div className="field">
               <label>Shift start</label>
@@ -162,7 +183,7 @@ export default function ControlPanel({
                 onChange={(e) => onField('shiftStart', e.target.value)}
               />
             </div>
-          </div>
+          </>
         ) : capacityMode === 'uniform' ? (
           <>
             <div className="row" style={{ marginTop: 10 }}>
@@ -260,7 +281,7 @@ export default function ControlPanel({
         </div>
         <p className="note">
           {capacityMode === 'auto'
-            ? 'The tool uses the fewest nurses that fit, and sizes each shift to its tour’s care + travel time — no idle buffer.'
+            ? 'The tool picks how many nurses each day needs and sizes each shift to its tour, aiming for the target utilisation. The spare time is the shift buffer — lower the % for more slack and rounder zones.'
             : 'Tours are sized to fit each shift; work is spread across every rostered nurse.'}
         </p>
       </div>
@@ -306,7 +327,8 @@ export default function ControlPanel({
                 <div className="legend-item" key={c.id}>
                   <span className="swatch" style={{ background: c.color }} />
                   <span>
-                    Tour {i + 1} · {c.shiftLabel} — {c.stops.length} stops
+                    Tour {i + 1} · {c.shiftLabel} — {c.stops.length} stops ·{' '}
+                    {pct(c.utilisation)}
                   </span>
                 </div>
               ))}
@@ -404,10 +426,91 @@ export default function ControlPanel({
               <b>{fmtDuration(metrics.workingMin)}</b>
             </div>
             <div className="metric">
+              <span>Paid hours</span>
+              <b>{fmtDuration(metrics.paidMin)}</b>
+            </div>
+            <div className="metric">
+              <span>Shift buffer</span>
+              <b>{fmtDuration(Math.max(0, metrics.paidMin - metrics.workingMin))}</b>
+            </div>
+            <div className="metric">
+              <span>Utilisation</span>
+              <b>{pct(metrics.utilisation)}</b>
+            </div>
+            <div className="metric">
               <span>Care efficiency</span>
               <b>{pct(metrics.careEfficiency)}</b>
             </div>
           </div>
+        </div>
+      )}
+
+      {plan && dayRoster && (
+        <div className="section">
+          <div className="section-title">Adjust shifts — {dayName}</div>
+          <div className="roster">
+            <div className="roster-head">
+              <span>Hours</span>
+              <span>Nurses</span>
+              <span />
+            </div>
+            {dayRoster.map((row, i) => (
+              <div className="roster-row" key={i}>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={row.hours}
+                  onChange={(e) => onDayRosterChange(i, 'hours', e.target.value)}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={row.count}
+                  onChange={(e) => onDayRosterChange(i, 'count', e.target.value)}
+                />
+                <button
+                  className="rm"
+                  onClick={() => onRemoveDayShift(i)}
+                  title="Remove shift"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button className="add-row" onClick={onAddDayShift}>
+              + Add shift
+            </button>
+          </div>
+          {(() => {
+            const editedMin = dayRoster.reduce(
+              (s, r) => s + (Number(r.hours) || 0) * 60 * (Number(r.count) || 0),
+              0
+            );
+            const delta = Math.round(editedMin - (dayRosterBaseMin || 0));
+            return (
+              <div className={'netchange' + (delta === 0 ? ' zero' : '')}>
+                Net change vs auto plan:{' '}
+                {delta === 0
+                  ? '0h — balanced'
+                  : (delta > 0 ? '+' : '−') + fmtDuration(Math.abs(delta))}
+              </div>
+            );
+          })()}
+          <button
+            className="btn btn-block"
+            style={{ marginTop: 8 }}
+            onClick={onReplanDay}
+            disabled={replanningDay}
+          >
+            {replanningDay ? 'Replanning…' : `Replan ${dayName}`}
+          </button>
+          <p className="note">
+            Edit shift hours and counts, then replan this day. Aim for a net
+            change of 0 to redistribute capacity without adding or cutting
+            total hours.
+          </p>
         </div>
       )}
     </>
