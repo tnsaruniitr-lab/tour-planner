@@ -378,6 +378,9 @@ Append an entry whenever you change the app, then commit.
 - **v0.27** — Re-assembly: an expandable "Actual vs File plan" breakdown
   under the comparison table — nurses, visits, care/travel/waiting/total
   time (absolute hours) and efficiency, side by side.
+- **v0.28** — Re-assembly: a second expandable "Per-tour metrics" section —
+  one row per tour (visits, efficiency, travel %) for the Actual tours and
+  for the File-plan tours, shown as two lists (they don't pair 1:1).
 
 ---
 

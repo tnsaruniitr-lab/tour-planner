@@ -428,6 +428,70 @@ export default function ActualToursPanel({
                   </details>
                 );
               })()}
+
+              <details className="collapsible">
+                <summary>Per-tour metrics — Actual vs File plan</summary>
+                <div className="tour-group-title">Actual tours</div>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Tour</th>
+                      <th>Visits</th>
+                      <th>Eff</th>
+                      <th>Travel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compActTours.map((t) => {
+                      const svc = t.serviceTimeMin || 0;
+                      const tot =
+                        svc + (t.travelTimeMin || 0) + (t.waitingTimeMin || 0);
+                      return (
+                        <tr key={t.key}>
+                          <td>{t.shortId}</td>
+                          <td>{t.visits.length}</td>
+                          <td>{pct(tot > 0 ? svc / tot : null)}</td>
+                          <td>
+                            {pct(tot > 0 ? (t.travelTimeMin || 0) / tot : null)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="tour-group-title">File plan tours</div>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Tour</th>
+                      <th>Visits</th>
+                      <th>Eff</th>
+                      <th>Travel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reassembled.file.clusters
+                      .filter((c) => inComp(c.period === 'evening'))
+                      .map((c, i) => {
+                        const svc = c.serviceMin || 0;
+                        const w = svc + (c.travelMin || 0);
+                        return (
+                          <tr key={i}>
+                            <td>{i + 1}</td>
+                            <td>{c.stops ? c.stops.length : 0}</td>
+                            <td>{pct(w > 0 ? svc / w : null)}</td>
+                            <td>{pct(w > 0 ? (c.travelMin || 0) / w : null)}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+                <p className="note">
+                  Actual and File tours don't pair up — re-assembly re-clusters
+                  every patient — so these are two per-tour lists, not matched
+                  rows. Compare the spread of efficiencies.
+                </p>
+              </details>
             </>
           )}
         </div>
