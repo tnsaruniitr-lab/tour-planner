@@ -53,8 +53,9 @@ Node 18+. Build: `npm run build`.
 ```
 touring-app/
   index.html, vite.config.js, package.json
-  public/sample-tours.csv      bundled actual-tour data (3 days, ~390 visits)
-  sample-patients.csv          example planner-upload format
+  public/
+    sample-tours.csv           bundled actual-tour data (3 days, ~390 visits)
+    sample-patients.csv        bundled planner dataset (82 patients, ~605 visits/wk)
   src/
     main.jsx                   entry
     App.jsx                    ALL top-level state, mode switching, both pipelines
@@ -74,7 +75,6 @@ touring-app/
       days.js                  weekly day-distribution (LPT load balancing)
       colors.js                categorical colour palette
       pipeline.js              Plan-mode orchestration (cluster → route → schedule)
-      sampleData.js            built-in planner sample dataset (London)
       actualTours.js           actual-tours CSV parser + tour model
       tourStore.js             localStorage persistence for actual tours
       patientStore.js          localStorage persistence for the planner upload
@@ -90,9 +90,12 @@ touring-app/
 Flow: upload patients (or "Load sample") → set shifts → **GO** → geocode →
 cluster → route → schedule → render.
 
-- The last uploaded file is **persisted to localStorage** (`patientStore.js`)
+- "Load sample" loads the **bundled weekly dataset** —
+  `public/sample-patients.csv`, 82 patients ≈ 605 visits/week — and the app
+  opens with it automatically on a first visit.
+- Any file you upload is also **persisted to localStorage** (`patientStore.js`)
   and auto-restored on reload; a "Load saved" button reloads it on demand,
-  "Clear saved" forgets it. "Load sample" still loads the built-in dataset.
+  "Clear saved" forgets it.
 
 - **Capacity modes:**
   - *Auto* — you give only a max shift length + target utilisation; the tool
@@ -315,6 +318,10 @@ Append an entry whenever you change the app, then commit.
 - **v0.16** — The planner upload is persisted to localStorage
   (`patientStore.js`): the last file is auto-restored on reload, with
   "Load saved" / "Clear saved" controls alongside "Load sample".
+- **v0.17** — The built-in planner sample is now a realistic weekly dataset
+  (`public/sample-patients.csv`, 82 patients ≈ 605 visits/week, replacing the
+  small hard-coded London set). "Load sample" loads it and the app opens with
+  it on a first visit, so the full dataset is always available.
 
 ---
 

@@ -9,7 +9,6 @@ import {
   saveUploadedPatients,
   clearSavedPatients,
 } from './lib/patientStore';
-import { getSampleData } from './lib/sampleData';
 import { geocodePatients } from './lib/geocode';
 import { buildPlan } from './lib/pipeline';
 import { hhmmToMin } from './lib/schedule';
@@ -46,6 +45,19 @@ const DEFAULT_ROSTER = [
   { count: 2, hours: 7, start: '08:00' },
   { count: 2, hours: 5, start: '09:00' },
 ];
+
+// The built-in planner dataset — a realistic week of 82 patients
+// (≈605 visits/week), bundled in public/ so it is always available.
+const SAMPLE_CSV_URL = '/sample-patients.csv';
+const SAMPLE_LABEL = 'weekly sample — 605 visits/week';
+
+async function fetchSamplePatients() {
+  const res = await fetch(SAMPLE_CSV_URL);
+  if (!res.ok) throw new Error('Sample dataset not found.');
+  const parsed = parsePatientsCSV(await res.text());
+  if (!parsed.length) throw new Error('Sample dataset is empty.');
+  return parsed;
+}
 
 function fmtHours(h) {
   return (Number.isInteger(h) ? h : Number(h.toFixed(2))) + 'h';
@@ -139,6 +151,18 @@ export default function App() {
   useEffect(() => {
     saveSelection({ date: selectedDate, tourKey: selectedTourKey });
   }, [selectedDate, selectedTourKey]);
+
+  // On first visit (no saved upload), open with the bundled weekly sample
+  // so the planner always has the full 605-visit dataset ready.
+  useEffect(() => {
+    if (loadSavedPatients()) return;
+    fetchSamplePatients()
+      .then((parsed) => {
+        setPatients(parsed);
+        setSourceLabel(SAMPLE_LABEL);
+      })
+      .catch(() => {});
+  }, []);
 
   // The Morning/Evening checkboxes also govern the re-assembled maps: if a
   // whole period is unchecked, that period's re-assembled tours are hidden too.
@@ -246,9 +270,16 @@ export default function App() {
   }
 
   function onLoadSample() {
-    setPatients(getSampleData());
-    setSourceLabel('sample data');
-    clearPlan();
+    fetchSamplePatients()
+      .then((parsed) => {
+        setPatients(parsed);
+        setSourceLabel(SAMPLE_LABEL);
+        clearPlan();
+      })
+      .catch((err) => {
+        setStatusMsg(err.message);
+        setStatusErr(true);
+      });
   }
 
   async function onGo() {

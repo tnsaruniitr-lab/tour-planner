@@ -1,0 +1,83 @@
+name,address,service_time,days_per_week,visits_per_day,lat,lng
+"Deniz, Müserref","10553 Berlin, Beusselstraße 73",108,5,1,52.5282067,13.3284523
+"Turan, Birgül","12351 Berlin, Johannisthaler Chaussee 400",145,7,2,52.4258666,13.4433724
+"Özer, Sebahat","13583 Berlin, Seegefelder Straße 47",115,6,1,52.5365566,13.1899725
+"Mingels, Thomas","10551 Berlin, Emdener Str 41",75,5,1,52.5313,13.3335976
+"Dincer, Haydar","13629 Berlin, Rohrdamm 70",114,6,1,52.5427944,13.2603401
+"Hassan, Atife","13347 Berlin, Reinickendorfer Straße 30",108,6,1,52.5472405,13.3694945
+"Schuhmacher, Harald","10553 Berlin, Huttenstraße 67",66,5,1,52.5273977,13.326461
+"Colakoglu, Nevin","13627 Berlin, Goebelstraße 114",102,5,1,52.5396357,13.2738767
+"Drescher, Horst-Dieter","10963 Berlin, Stresemannstr 52",65,5,1,52.5021149,13.3858531
+"Kluckert, Ingrid","12277 Berlin, Richard-Tauber-Damm 47",76,5,1,52.4142091,13.3933096
+"Beyhan, Nuran","10961 Berlin, Fürbringerstraße 29",80,5,1,52.4932999,13.3955201
+"Adra, Farouk","12355 Berlin, Neuhofer Straße 132",91,6,1,52.4108607,13.4953689
+"Silbernagel, Bärbel","12359 Berlin, Parchimer Allee 8",51,5,1,52.4457111,13.4591647
+"Nazzal, Suad","13353 Berlin, Müllerstraße 163A",79,5,1,52.5434339,13.3639637
+"Zibara, Hussein","10559 Berlin, Pritzwalkerstr. 13",48,3,1,52.5274679,13.3528251
+"Yurtseven, Mine","10783 Berlin, Potsdamer Straße 169",89,6,1,52.4940786,13.3614455
+"Akyildiz, Necla","12105 Berlin, Machonstraße 34",77,5,1,52.4475193,13.3818025
+"Celik, Emine","13353 Berlin, Luxemburger Straße 32A",66,5,1,52.5453496,13.3587836
+"Ekici, Kamile","13599 Berlin, Haselhorster Damm 2",69,5,1,52.5434162,13.2398233
+"Cantürk, Özkan","13359 Berlin, Fordoner Straße 5",62,5,1,52.5617633,13.3829499
+"Kühn, Sylvia","10555 Berlin, Jagowstr. 4c",50,3,1,52.5196931,13.3326243
+"Önder, Güler","10623 Berlin, Uhlandstr. 190",75,5,1,52.5061393,13.3260014
+"Aslan, Temraz","10963 Berlin, Dessauer Straße 30B",76,5,1,52.5045469,13.3795259
+"Yilmaz, Semsinar","13355 Berlin, Demminer Straße 9",72,5,1,52.5415212,13.3966471
+"Sag, Fatma","12057 Berlin, Sonnenallee 308",55,5,1,52.4660907,13.4704804
+"Mizrak, Gürbüz","13353 Berlin, Burgsdorfstraße 14",79,5,1,52.5428973,13.3630973
+"Demir, Ahmet","10555 Berlin, Gotzkowskystraße 24",87,7,2,52.5244126,13.330112
+"Temel, Ayse","14059 Berlin, Am Bahnhof Westend 2",93,6,1,52.5174218,13.2859906
+"Kabak, Sabire","10557 Berlin, Otto-Dix-Straße 6",73,5,1,52.5256323,13.3607918
+"Gündüz, Feride","12051 Berlin, Hermannstraße 121 A",110,7,2,52.4653787,13.4322583
+"Askar, Neval","10555 Berlin, Cuxhavener Straße 15",65,6,1,52.5176152,13.3385293
+"Yigit, Nuri-Osman","10969 Berlin, Alte Jakobstraße 45",76,5,1,52.5078612,13.4048026
+"Yürek, Emine","13353 Berlin, Tegelerstrasse 29",76,5,1,52.5430232,13.3560478
+"Mahmoud Alamin, Mohazab","13403 Berlin, Otisstraße 52",111,7,2,52.5755503,13.3065521
+"Karakoc, Nazmiye","13405 Berlin, Kurt-Schumacher-Damm 32a",102,7,2,52.5613096,13.3246536
+"Gülbahce, Elif","13589 Berlin, Am Finkenherd 2a",58,5,1,52.5476261,13.1493741
+"Demir, Fadime","13353 Berlin, Föhrerstrasse 10",70,7,2,52.5415883,13.3487766
+"Erdogdu, Nurettin","10179 Berlin, Stallschreiberstraße 15",71,5,1,52.5064373,13.4079003
+"Koslowski, Dajana","10243 Berlin, Marchlewskistraße 81",83,7,2,52.5105386,13.4476506
+"Albrecht, Sigrid","10627 Berlin, Windscheidstraße 1",98,7,2,52.5101413,13.2976414
+"Pandolfina Del Vasto, Maria","13347 Berlin, Reinickendorferstrasse 58a",54,5,1,52.5541613,13.3664959
+"Noack, Anneliese","10551 Berlin, Waldstr. 47",53,5,1,52.5296337,13.3308904
+"Bostanci, Sevinc","10551 Berlin, Bremer Straße 41",27,3,1,52.5326511,13.3389816
+"Basaran, Cevriye","10551 Berlin, Emdener Straße 47A",66,6,1,52.5297101,13.333718
+"Dogan, Ismail","10997 Berlin, Naunynstrasse 6",53,5,1,52.5010155,13.4261383
+"Saglam, Sabiha","10961 Berlin, Schleiermacherstraße 11",78,5,1,52.492363,13.3981703
+"Aktas, Havva","13349 Berlin, Müllerstr. 128",76,5,1,52.5273528,13.3401068
+"Giounousoglou, Nesipe","13347 Berlin, Nazarethkirchstraße 36",72,7,2,52.5501313,13.3627814
+"Izci, Makbule","13407 Berlin, Holländerstraße 37",50,5,1,52.5637267,13.3431447
+"Okay, Ali","10997 Berlin, Audre-Lorde-Str. 16",87,7,2,52.5042486,13.4302662
+"Günar, Nizamettin","13347 Berlin, Schulstraße 98A",48,6,1,52.5535456,13.3682347
+"Kavas, Fatma","10551 Berlin, Waldstraße 37",75,5,1,52.5317046,13.3301266
+"Türcin, Delali","13355 Berlin, Brunnenstr. 53",34,7,1,52.5386527,13.3963866
+"Senay, Nazmiye","13349 Berlin, Müllerstr. 128",63,5,1,52.5524232,13.3480665
+"Arslanoglu, Hatice","10963 Berlin, Berngurger Str. 21",31,3,1,52.52,13.405
+"Henning, Nataliya","10783 Berlin, Potsdamerstraße 172",93,7,2,52.4946174,13.3607931
+"Dauben, Ingeborg","13347 Berlin, Schulstraße 31",39,6,1,52.5502302,13.3656473
+"Behram, Necla","13627 Berlin, Halemweg 23",76,7,2,52.5377278,13.2858194
+"Richter, Martin","10555 Berlin, Elberfelder Strasse 13",68,7,2,52.5225273,13.3358048
+"Demir, Döne","10999 Berlin, Glogauer Straße 11b",48,6,1,52.4932123,13.4355866
+"Senyücel, Müzeyyen","12053 Berlin, Werbellinstraße 75",70,7,2,52.4775844,13.4280027
+"Bükenler, Dilber","14059 Berlin, Seelingstr. 11",70,7,2,52.5154394,13.2946617
+"Ciftci, Durdu","10997 Berlin, Wrangelstraße 85",44,3,1,52.4989973,13.4411792
+"Bayram, Naciye","13359 Berlin, Drontheimer Straße 12",82,7,2,52.5589311,13.3771968
+"Karatepe, Fikriye","10789 Berlin, Nürnberger Straße 43",43,5,1,52.5000031,13.3364289
+"Karadarevic, Bosiljka","10551 Berlin, Emdener Str. 4",37,3,1,52.5277552,13.3336174
+"Isigan, Sevim","10783 Berlin, Potsdamer Str. 140",60,5,1,52.4942065,13.3586848
+"Celik, Gülcan","13347 Berlin, Malplaquetstr 18",50,5,1,52.5520617,13.3573689
+"Lambaci, Hikmet","13359 Berlin, Wollankstraße 63",88,7,2,52.5599462,13.3869375
+"Bilgi, Faik","12101 Berlin, Tempelhofer Damm 90",51,6,1,52.4736174,13.3852677
+"Orhan, Rafet","13357 Berlin, Grüntaler Str. 6",70,7,2,52.5512872,13.3863822
+"Eryilmaz, Safiye","13409 Berlin, Sommerstr. 17",70,7,2,52.5735031,13.3762825
+"Öztürk, Nazli","13347 Berlin, Reinickendorfer Straße 44",70,7,2,52.5495093,13.3688586
+"Ovali, Remziye","13347 Berlin, Liebenwalder Straße 47",28,5,1,52.5519229,13.3624431
+"Yildiz, Arife","13359 Berlin, Koloniestraße 123",32,7,1,52.5596057,13.3793396
+"Atay, Emine","13355 Berlin, Brunnenstraße 90",19,3,1,52.5449522,13.3911863
+"Bükenler, Selim","14059 Berlin, Seelingstr. 11",79,7,2,52.5154394,13.2946617
+"Salbout, Karime","13347 Berlin, Prinz-Eugen-Str. 6",26,3,1,52.547474,13.3654645
+"Kammerer, Eugen","10965 Berlin, Schwiebusser Str. 20",60,7,2,52.4860143,13.3871094
+"Karakoc, Zeki","13405 Berlin, Kurt-Schumacher-Damm 32a",34,6,1,52.5613096,13.3246536
+"Zerowsky, Hasibe","10787 Berlin, Kleiststr. 43",19,3,1,52.4996177,13.3518348
+"Örümcek, Ayse","13355 Berlin, Hussitenstraße 15",19,3,1,52.5382356,13.3875884
