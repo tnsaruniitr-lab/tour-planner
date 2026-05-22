@@ -1,0 +1,9 @@
+name,address,service_time,days_per_week,visits_per_day,lat,lng
+Jane Doe,"12 Baker Street, London",30,2,1,51.5201,-0.1571
+John Smith,"45 Marylebone Rd, London",45,1,1,51.5226,-0.1503
+Mary Brown,"8 Paddington St, London",30,3,2,51.5188,-0.1531
+Peter Jones,"22 King's Rd, Chelsea, London",60,2,1,51.4884,-0.1689
+Susan Lee,"15 Sloane Ave, London",20,1,1,51.4921,-0.1672
+Tom Clark,"3 Old Street, London",30,2,1,51.5246,-0.0876
+Emma Wilson,"77 Curtain Rd, Shoreditch, London",45,1,2,51.5258,-0.0792
+David Hall,"5 Camberwell Rd, London",30,3,1,51.4748,-0.0931
