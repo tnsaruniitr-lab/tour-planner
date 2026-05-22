@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ALL_TOURS } from '../lib/actualTours';
 import { clusterColor } from '../lib/colors';
 import { hhmmToMin } from '../lib/schedule';
+import { obfuscateName } from '../lib/obfuscate';
 
 function fmtDuration(min) {
   if (min == null) return '—';
@@ -147,7 +148,7 @@ export default function ActualToursPanel({
       />
       <span className="swatch" style={{ background: clusterColor(i) }} />
       <span>
-        {t.shortId} · {t.nurseName} ({t.visits.length})
+        {t.shortId} · {obfuscateName(t.nurseName)} ({t.visits.length})
       </span>
     </label>
   );
@@ -243,7 +244,7 @@ export default function ActualToursPanel({
               </option>
               {toursForDate.map((t) => (
                 <option key={t.key} value={t.key}>
-                  {t.shortId} · {t.nurseName} ({t.visits.length})
+                  {t.shortId} · {obfuscateName(t.nurseName)} ({t.visits.length})
                 </option>
               ))}
             </select>
@@ -498,7 +499,11 @@ export default function ActualToursPanel({
               <span className="shift-len">{h}h</span>
               <span className="shift-chips">
                 {bucketTours[h].map((t) => (
-                  <label className="shift-chip" key={t.key} title={t.nurseName}>
+                  <label
+                  className="shift-chip"
+                  key={t.key}
+                  title={obfuscateName(t.nurseName)}
+                >
                     <input
                       type="checkbox"
                       checked={!hiddenTours[t.key]}
@@ -523,7 +528,7 @@ export default function ActualToursPanel({
           <div className="summary">
             <div className="stat">
               <span>Nurse</span>
-              <b>{selectedTour.nurseName}</b>
+              <b>{obfuscateName(selectedTour.nurseName)}</b>
             </div>
             <div className="stat">
               <span>Staff ID</span>

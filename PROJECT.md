@@ -76,6 +76,7 @@ touring-app/
       geo.js                   lat/lng projection, haversine, coverage radius
       csv.js                   patient CSV parser
       workbook.js              file reader — .csv / .xlsx / .xls → CSV text
+      obfuscate.js             partial name masking for display
       cluster.js               capacitated k-means (heterogeneous caps, slack)
       route.js                 nearest-neighbour + 2-opt ordering
       schedule.js              tour time-simulation, 3h-gap reconnector, hh:mm utils
@@ -370,6 +371,10 @@ Append an entry whenever you change the app, then commit.
   recorded **waiting time**: the Actual column's efficiency is
   service ÷ (service + travel + waiting), and a new "Waiting" row shows
   that share. Re-planned modes have no recorded waiting.
+- **v0.26** — Privacy: nurse and patient names are partially masked for
+  display (`obfuscate.js`) — the first 3 letters of each name word become
+  "xxx" (tour lists, dropdowns and map popups). Login credentials unified
+  to `dosteli_test` / `dosteli_test`.
 
 ---
 

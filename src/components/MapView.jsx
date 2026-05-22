@@ -10,6 +10,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import { minToHHMM } from '../lib/schedule';
+import { obfuscateName } from '../lib/obfuscate';
 
 const LONDON = [51.505, -0.12];
 
@@ -89,7 +90,7 @@ export default function MapView({ dayPlan, showZones = true, scrollZoom = true }
             icon={stopIcon(c.color, s.order)}
           >
             <Popup>
-              <div className="popup-title">{s.patient.name}</div>
+              <div className="popup-title">{obfuscateName(s.patient.name)}</div>
               {s.patient.address && (
                 <div className="popup-row">{s.patient.address}</div>
               )}
