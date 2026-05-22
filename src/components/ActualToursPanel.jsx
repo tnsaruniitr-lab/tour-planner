@@ -105,20 +105,31 @@ export default function ActualToursPanel({
   // re-planned tour is scheduled tight and carries no recorded waiting.
   const compActWait = compActTours.reduce((s, t) => s + (t.waitingTimeMin || 0), 0);
   const compActTotal = compActSvc + compActTrv + compActWait;
+  const compActVisits = compActTours.reduce((s, t) => s + t.visits.length, 0);
   const compActEff = compActTotal > 0 ? compActSvc / compActTotal : null;
   const compActTrvPct = compActTotal > 0 ? compActTrv / compActTotal : null;
   const compActWaitPct = compActTotal > 0 ? compActWait / compActTotal : null;
   const modeMetrics = (m) => {
-    if (!m) return { eff: null, travelPct: null, waitPct: null, tours: 0 };
+    if (!m) {
+      return {
+        eff: null, travelPct: null, waitPct: null, tours: 0,
+        serviceMin: 0, travelMin: 0, workingMin: 0, visits: 0,
+      };
+    }
     const cl = m.clusters.filter((c) => inComp(c.period === 'evening'));
     const svc = cl.reduce((s, c) => s + (c.serviceMin || 0), 0);
     const trv = cl.reduce((s, c) => s + (c.travelMin || 0), 0);
     const w = svc + trv;
+    const visits = cl.reduce((s, c) => s + (c.stops ? c.stops.length : 0), 0);
     return {
       eff: w > 0 ? svc / w : null,
       travelPct: w > 0 ? trv / w : null,
       waitPct: null, // re-planned tours have no recorded waiting
       tours: cl.length,
+      serviceMin: svc,
+      travelMin: trv,
+      workingMin: w,
+      visits,
     };
   };
 
@@ -357,6 +368,66 @@ export default function ActualToursPanel({
                 so they carry no waiting. Toggle Morning / Evening / Both
                 above. A map for each mode shows below.
               </p>
+
+              {(() => {
+                const f = modeMetrics(reassembled.file);
+                return (
+                  <details className="collapsible">
+                    <summary>Actual vs File plan — detailed breakdown</summary>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th />
+                          <th>Actual</th>
+                          <th>File plan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Nurses</td>
+                          <td>{compActTours.length}</td>
+                          <td>{f.tours}</td>
+                        </tr>
+                        <tr>
+                          <td>Visits</td>
+                          <td>{compActVisits}</td>
+                          <td>{f.visits}</td>
+                        </tr>
+                        <tr>
+                          <td>Care time</td>
+                          <td>{fmtDuration(compActSvc)}</td>
+                          <td>{fmtDuration(f.serviceMin)}</td>
+                        </tr>
+                        <tr>
+                          <td>Travel time</td>
+                          <td>{fmtDuration(compActTrv)}</td>
+                          <td>{fmtDuration(f.travelMin)}</td>
+                        </tr>
+                        <tr>
+                          <td>Waiting time</td>
+                          <td>{fmtDuration(compActWait)}</td>
+                          <td>—</td>
+                        </tr>
+                        <tr>
+                          <td>Total time</td>
+                          <td>{fmtDuration(compActTotal)}</td>
+                          <td>{fmtDuration(f.workingMin)}</td>
+                        </tr>
+                        <tr>
+                          <td>Efficiency</td>
+                          <td>{pct(compActEff)}</td>
+                          <td>{pct(f.eff)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p className="note">
+                      Care time is the same work; the File plan trims travel
+                      and removes waiting — that saved time is the slack each
+                      nurse gains at the same headcount.
+                    </p>
+                  </details>
+                );
+              })()}
             </>
           )}
         </div>

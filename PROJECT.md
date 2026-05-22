@@ -375,6 +375,9 @@ Append an entry whenever you change the app, then commit.
   display (`obfuscate.js`) — the first 3 letters of each name word become
   "xxx" (tour lists, dropdowns and map popups). Login credentials unified
   to `dosteli_test` / `dosteli_test`.
+- **v0.27** — Re-assembly: an expandable "Actual vs File plan" breakdown
+  under the comparison table — nurses, visits, care/travel/waiting/total
+  time (absolute hours) and efficiency, side by side.
 
 ---
 
