@@ -142,10 +142,6 @@ export default function App() {
   const [effComputing, setEffComputing] = useState(false);
   const [reForm, setReForm] = useState({
     gapHours: 3,
-    mHours: 6,
-    mCount: 8,
-    eHours: 5,
-    eCount: 4,
     maxHours: 8,
   });
   const [reassembled, setReassembled] = useState(null);
@@ -516,10 +512,6 @@ export default function App() {
       const result = await reassembleAll(toursForDate, {
         cutoffMin: hhmmToMin(amPmCutoff),
         gapMin: Math.round((parseFloat(reForm.gapHours) || 3) * 60),
-        mHours: parseFloat(reForm.mHours) || 6,
-        mCount: parseInt(reForm.mCount, 10) || 1,
-        eHours: parseFloat(reForm.eHours) || 5,
-        eCount: parseInt(reForm.eCount, 10) || 1,
         maxHours: parseFloat(reForm.maxHours) || 8,
       });
       setReassembled(result);
@@ -583,11 +575,23 @@ export default function App() {
     setAuthed(true);
   }
 
+  function handleLogout() {
+    try {
+      localStorage.removeItem(AUTH_KEY);
+    } catch {
+      /* ignore */
+    }
+    setAuthed(false);
+  }
+
   if (!authed) return <Login onLogin={handleLogin} />;
 
   return (
     <div className="app">
       <div className="panel">
+        <button className="logout-btn" onClick={handleLogout}>
+          Log out
+        </button>
         <div className="view-switch">
           <button
             className={appMode === 'plan' ? 'active' : ''}
@@ -691,7 +695,7 @@ export default function App() {
             </div>
           )}
           {appMode === 'actual' && reassembled && (
-            <div className="map-label">Actual tours</div>
+            <div className="map-label">Actual tours — from file</div>
           )}
           <MapView
             dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
@@ -713,14 +717,6 @@ export default function App() {
               <div className="map-label">Re-assembled — same as file</div>
               <MapView
                 dayPlan={{ clusters: reClusters(reassembled.file) }}
-                showZones={true}
-                scrollZoom={false}
-              />
-            </div>
-            <div className="map-pane">
-              <div className="map-label">Re-assembled — uniform shifts</div>
-              <MapView
-                dayPlan={{ clusters: reClusters(reassembled.uniform) }}
                 showZones={true}
                 scrollZoom={false}
               />

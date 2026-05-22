@@ -295,6 +295,26 @@ input[type="password"] {
 }
 input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
+.logout-btn {
+  display: block;
+  margin: 0 0 12px auto;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.logout-btn:hover {
+  background: #fcece8;
+  color: var(--danger);
+  border-color: #f0c4ba;
+}
+
 .view-switch {
   display: flex;
   gap: 4px;

@@ -141,14 +141,15 @@ Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map.
 - **Efficiency & shifts:** OSRM vs Actual efficiency (per group + per-tour
   toggle); shift-length distribution with selectable tour-ID chips.
 - **Re-assemble into circular tours:** re-plans the selected day's visits
-  through the planner. Runs **all three staffing modes at once**
-  (same-as-file / uniform / fewest-nurses). Morning and evening pools are
-  planned separately and never mixed; a patient with visits in both periods
-  is kept split; repeat visits in a period stay with one nurse ≥ the gap
-  apart; start times are not pinned. Output: a **comparison table**
-  (Actual vs the 3 modes — efficiency, travel %, tours; with a
-  Morning/Evening/Both selector) and **a map per mode stacked below** the
-  actual map. The Morning/Evening checkboxes hide that period on every map.
+  through the planner. Runs **two staffing modes** — *same-as-file* (the
+  agency's actual shift count/lengths) and *fewest-nurses*. Morning and
+  evening pools are planned separately and never mixed; a patient with
+  visits in both periods is kept split; repeat visits in a period stay with
+  one nurse ≥ the gap apart; start times are not pinned. Output: a
+  **comparison table** (Actual vs the 2 modes — efficiency, travel %, tours;
+  with a Morning/Evening/Both selector) and **a map per mode stacked below**
+  the actual map. The Morning/Evening checkboxes hide that period on every
+  map.
 
 ---
 
@@ -276,8 +277,8 @@ tour totals.
 ## 9. Current status
 
 Both modes fully working and verified against the agency's real Berlin data
-(3 days, ~390 visits, 25 tours/day). Re-assembly runs all 3 staffing modes and
-shows 4 stacked maps + a comparison table.
+(3 days, ~390 visits, 25 tours/day). Re-assembly runs 2 staffing modes and
+shows 3 stacked maps + a comparison table.
 
 ## 10. Known limitations
 
@@ -360,6 +361,9 @@ Append an entry whenever you change the app, then commit.
 - **v0.23** — UI polish: colored basemap (CARTO Voyager instead of the grey
   Positron tiles) and refined control-panel buttons — gradient GO button,
   hover/active states and smooth transitions throughout.
+- **v0.24** — Re-assembly drops the *uniform* mode (it was rarely optimal):
+  comparison table and stacked maps now show Actual + File + Fewest only.
+  Added a "Log out" button so the demo login can be exited and re-tested.
 
 ---
 

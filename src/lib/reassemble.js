@@ -43,17 +43,6 @@ function buildRoster(period, periodTours, patients, opts) {
     });
   }
 
-  if (opts.mode === 'uniform') {
-    const hours = period === 'morning' ? opts.mHours : opts.eHours;
-    const count = period === 'morning' ? opts.mCount : opts.eCount;
-    const lengthMin = Math.max(30, Math.round(hours * 60));
-    return Array.from({ length: Math.max(1, Math.round(count)) }, () => ({
-      startMin: 480,
-      lengthMin,
-      label: fmtHours(hours),
-    }));
-  }
-
   // fewest: minimum nurse count within a max shift length
   const lengthMin = Math.max(30, Math.round(opts.maxHours * 60));
   const totalLoad = patients.reduce(
@@ -126,11 +115,10 @@ export async function reassembleDay(tours, opts) {
   };
 }
 
-// Run all three staffing modes for the day (sequentially, to stay gentle on
-// the OSRM server) — returns one result per mode.
+// Run both staffing modes for the day (sequentially, to stay gentle on the
+// OSRM server) — returns one result per mode.
 export async function reassembleAll(tours, baseOpts) {
   const file = await reassembleDay(tours, { ...baseOpts, mode: 'file' });
-  const uniform = await reassembleDay(tours, { ...baseOpts, mode: 'uniform' });
   const fewest = await reassembleDay(tours, { ...baseOpts, mode: 'fewest' });
-  return { file, uniform, fewest };
+  return { file, fewest };
 }

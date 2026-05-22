@@ -249,55 +249,14 @@ export default function ActualToursPanel({
         <div className="section">
           <div className="section-title">Re-assemble into circular tours</div>
           <p className="note">
-            Re-plan the day's visits into clean circular tours — all three
-            staffing modes at once. Morning/evening kept separate; 2-visit
-            patients kept with one nurse ≥ the gap apart.
+            Re-plan the day's visits into clean circular tours — both staffing
+            modes at once (same-as-file and fewest-nurses). Morning/evening
+            kept separate; 2-visit patients kept with one nurse ≥ the gap
+            apart.
           </p>
           <div className="row">
             <div className="field">
-              <label>Morning shift (h)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.5"
-                value={reForm.mHours}
-                onChange={(e) => onReField('mHours', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>Morning nurses</label>
-              <input
-                type="number"
-                min="1"
-                value={reForm.mCount}
-                onChange={(e) => onReField('mCount', e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="row">
-            <div className="field">
-              <label>Evening shift (h)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.5"
-                value={reForm.eHours}
-                onChange={(e) => onReField('eHours', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>Evening nurses</label>
-              <input
-                type="number"
-                min="1"
-                value={reForm.eCount}
-                onChange={(e) => onReField('eCount', e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="row">
-            <div className="field">
-              <label>Max shift, fewest (h)</label>
+              <label>Max shift length (h)</label>
               <input
                 type="number"
                 min="1"
@@ -323,8 +282,8 @@ export default function ActualToursPanel({
             disabled={reassembling}
           >
             {reassembling
-              ? 'Re-assembling all 3 modes…'
-              : 'Re-assemble — compare 3 modes'}
+              ? 'Re-assembling…'
+              : 'Re-assemble — compare modes'}
           </button>
 
           {reassembled && (
@@ -355,7 +314,6 @@ export default function ActualToursPanel({
                     <th />
                     <th>Actual</th>
                     <th>File</th>
-                    <th>Uniform</th>
                     <th>Fewest</th>
                   </tr>
                 </thead>
@@ -364,21 +322,18 @@ export default function ActualToursPanel({
                     <td>Efficiency</td>
                     <td>{pct(compActEff)}</td>
                     <td>{pct(modeMetrics(reassembled.file).eff)}</td>
-                    <td>{pct(modeMetrics(reassembled.uniform).eff)}</td>
                     <td>{pct(modeMetrics(reassembled.fewest).eff)}</td>
                   </tr>
                   <tr>
                     <td>Travel</td>
                     <td>{pct(compActTrvPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).travelPct)}</td>
-                    <td>{pct(modeMetrics(reassembled.uniform).travelPct)}</td>
                     <td>{pct(modeMetrics(reassembled.fewest).travelPct)}</td>
                   </tr>
                   <tr>
                     <td>Tours</td>
                     <td>{compActTours.length}</td>
                     <td>{modeMetrics(reassembled.file).tours}</td>
-                    <td>{modeMetrics(reassembled.uniform).tours}</td>
                     <td>{modeMetrics(reassembled.fewest).tours}</td>
                   </tr>
                 </tbody>
