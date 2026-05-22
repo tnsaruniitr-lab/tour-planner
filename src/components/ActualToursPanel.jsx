@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ALL_TOURS } from '../lib/actualTours';
 import { clusterColor } from '../lib/colors';
 import { hhmmToMin } from '../lib/schedule';
@@ -36,6 +37,7 @@ export default function ActualToursPanel({
   onComputeEfficiency,
   effComputing,
 }) {
+  const [effType, setEffType] = useState('actual');
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
 
   // Morning/Evening classification by shift start vs. the cutoff.
@@ -48,28 +50,40 @@ export default function ActualToursPanel({
   const morning = decorated.filter((d) => !d.evening);
   const evening = decorated.filter((d) => d.evening);
 
-  // Efficiency = service / (service + travel). Travel = OSRM x1.5. No rounding.
-  const travelOf = (t) => tourTravel[t.key];
-  const effOf = (t) => {
-    const tr = travelOf(t);
+  // Two efficiency definitions (no rounding in the maths):
+  //  OSRM   = service / (service + OSRM road travel x1.5)
+  //  Actual = service / (service + recorded travel + recorded waiting)
+  const osrmEff = (t) => {
+    const tr = tourTravel[t.key];
     if (tr == null) return null;
     const svc = t.serviceTimeMin || 0;
     return svc + tr > 0 ? svc / (svc + tr) : 0;
   };
-  const groupEff = (list) => {
-    let svc = 0;
-    let tot = 0;
-    for (const { t } of list) {
-      const tr = travelOf(t);
-      if (tr == null) continue;
-      svc += t.serviceTimeMin || 0;
-      tot += (t.serviceTimeMin || 0) + tr;
-    }
-    return tot > 0 ? svc / tot : null;
+  const actualEff = (t) => {
+    const svc = t.serviceTimeMin || 0;
+    const tot = svc + (t.travelTimeMin || 0) + (t.waitingTimeMin || 0);
+    return tot > 0 ? svc / tot : 0;
   };
-  const haveTravel = toursForDate.some((t) => travelOf(t) != null);
-  const allComputed =
-    toursForDate.length > 0 && toursForDate.every((t) => travelOf(t) != null);
+  const groupEff = (list, mode) => {
+    let num = 0;
+    let den = 0;
+    for (const { t } of list) {
+      const svc = t.serviceTimeMin || 0;
+      if (mode === 'osrm') {
+        const tr = tourTravel[t.key];
+        if (tr == null) continue;
+        num += svc;
+        den += svc + tr;
+      } else {
+        num += svc;
+        den += svc + (t.travelTimeMin || 0) + (t.waitingTimeMin || 0);
+      }
+    }
+    return den > 0 ? num / den : null;
+  };
+  const allOsrm =
+    toursForDate.length > 0 &&
+    toursForDate.every((t) => tourTravel[t.key] != null);
 
   // Shift-length distribution — shift hours rounded UP to the next whole hour.
   const bucketTours = {};
@@ -234,59 +248,89 @@ export default function ActualToursPanel({
         <div className="section">
           <div className="section-title">Efficiency &amp; shifts</div>
 
-          {!allComputed && (
+          {!allOsrm && (
             <button
               className="btn btn-block"
+              style={{ marginBottom: 8 }}
               onClick={onComputeEfficiency}
               disabled={effComputing}
             >
               {effComputing
                 ? 'Computing road travel…'
-                : 'Calculate efficiency (OSRM)'}
+                : 'Calculate OSRM efficiency'}
             </button>
           )}
 
-          {haveTravel && (
-            <>
-              <div className="summary" style={{ marginTop: 8 }}>
-                <div className="stat">
-                  <span>Morning efficiency</span>
-                  <b>{pct(groupEff(morning))}</b>
-                </div>
-                <div className="stat">
-                  <span>Evening efficiency</span>
-                  <b>{pct(groupEff(evening))}</b>
-                </div>
-              </div>
-              <p className="note">
-                Efficiency = service ÷ (service + travel). Travel = OSRM road
-                time × 1.5 for traffic.
-              </p>
-              <details className="collapsible">
-                <summary>Efficiency by tour</summary>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tour</th>
-                      <th>Service</th>
-                      <th>Travel</th>
-                      <th>Eff.</th>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>OSRM</th>
+                <th>Actual</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Morning</td>
+                <td>{pct(groupEff(morning, 'osrm'))}</td>
+                <td>{pct(groupEff(morning, 'actual'))}</td>
+              </tr>
+              <tr>
+                <td>Evening</td>
+                <td>{pct(groupEff(evening, 'osrm'))}</td>
+                <td>{pct(groupEff(evening, 'actual'))}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="note">
+            OSRM = service ÷ (service + OSRM travel ×1.5). Actual = service ÷
+            (service + recorded travel + waiting).
+          </p>
+
+          <details className="collapsible">
+            <summary>Efficiency by tour</summary>
+            <div className="mode-toggle" style={{ margin: '8px 0' }}>
+              <button
+                className={effType === 'osrm' ? 'active' : ''}
+                onClick={() => setEffType('osrm')}
+              >
+                OSRM
+              </button>
+              <button
+                className={effType === 'actual' ? 'active' : ''}
+                onClick={() => setEffType('actual')}
+              >
+                Actual
+              </button>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Tour</th>
+                  <th>Service</th>
+                  <th>Travel</th>
+                  <th>Wait</th>
+                  <th>Eff.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {toursForDate.map((t) => {
+                  const osrm = effType === 'osrm';
+                  return (
+                    <tr key={t.key}>
+                      <td>{t.shortId}</td>
+                      <td>{fmtDuration(t.serviceTimeMin)}</td>
+                      <td>
+                        {fmtDuration(osrm ? tourTravel[t.key] : t.travelTimeMin)}
+                      </td>
+                      <td>{osrm ? '—' : fmtDuration(t.waitingTimeMin)}</td>
+                      <td>{pct(osrm ? osrmEff(t) : actualEff(t))}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {toursForDate.map((t) => (
-                      <tr key={t.key}>
-                        <td>{t.shortId}</td>
-                        <td>{fmtDuration(t.serviceTimeMin)}</td>
-                        <td>{fmtDuration(travelOf(t))}</td>
-                        <td>{pct(effOf(t))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            </>
-          )}
+                  );
+                })}
+              </tbody>
+            </table>
+          </details>
 
           <div className="tour-group-title">Shift length distribution</div>
           <label className="legend-item">
@@ -355,6 +399,10 @@ export default function ActualToursPanel({
                 {selectedTour.servicePct}% / {selectedTour.travelPct}% /{' '}
                 {selectedTour.waitingPct}%
               </b>
+            </div>
+            <div className="stat">
+              <span>Actual efficiency</span>
+              <b>{pct(actualEff(selectedTour))}</b>
             </div>
           </div>
           {selectedTour.unmapped.length > 0 && (

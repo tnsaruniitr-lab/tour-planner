@@ -286,6 +286,26 @@ export default function App() {
     setSelectedTourKey(ALL_TOURS);
   }
 
+  async function onComputeEfficiency() {
+    setEffComputing(true);
+    try {
+      const updated = { ...tourTravel };
+      const todo = toursForDate.filter((t) => updated[t.key] == null);
+      for (let i = 0; i < todo.length; i += 6) {
+        const batch = todo.slice(i, i + 6);
+        await Promise.all(
+          batch.map(async (t) => {
+            updated[t.key] = await computeTourTravelMin(t);
+          })
+        );
+      }
+      setTourTravel(updated);
+      saveTourTravel(updated);
+    } finally {
+      setEffComputing(false);
+    }
+  }
+
   function onClearTours() {
     clearTourStore();
     setTourRows({});
@@ -307,26 +327,6 @@ export default function App() {
       for (const k of keys) next[k] = !visible;
       return next;
     });
-  }
-
-  async function onComputeEfficiency() {
-    setEffComputing(true);
-    try {
-      const updated = { ...tourTravel };
-      const todo = toursForDate.filter((t) => updated[t.key] == null);
-      for (let i = 0; i < todo.length; i += 6) {
-        const batch = todo.slice(i, i + 6);
-        await Promise.all(
-          batch.map(async (t) => {
-            updated[t.key] = await computeTourTravelMin(t);
-          })
-        );
-      }
-      setTourTravel(updated);
-      saveTourTravel(updated);
-    } finally {
-      setEffComputing(false);
-    }
   }
 
   return (

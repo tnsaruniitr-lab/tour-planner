@@ -217,6 +217,12 @@ Append a new entry whenever you change the app, then commit.
   row lists its tours as colour-dotted ID checkboxes (default all on) with a
   "Select all" master; toggling them shows/hides routes on the map. Shares
   visibility state with the Morning/Evening checkboxes.
+- **v0.11** — Actual-tours efficiency now shows **two** definitions side by
+  side: **OSRM** = service ÷ (service + OSRM travel ×1.5), and **Actual** =
+  service ÷ (service + recorded travel + recorded waiting), taken from the
+  file's actual visit timeline (so it counts real gap/idle time). The
+  Morning/Evening summary table has an OSRM column and an Actual column; the
+  per-tour table has an OSRM/Actual toggle.
 
 ---
 

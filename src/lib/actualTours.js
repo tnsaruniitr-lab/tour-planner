@@ -52,6 +52,8 @@ export function buildTours(rows) {
         shiftEnd: (r.shiftend || '').trim(),
         shiftDuration: num(r.shiftduration),
         serviceTimeMin: num(r.servicetimemin),
+        travelTimeMin: num(r.traveltimemin),
+        waitingTimeMin: num(r.waitingtimemin),
         servicePct: num(r.servicepct),
         travelPct: num(r.travelpct),
         waitingPct: num(r.waitingpct),
