@@ -51,7 +51,7 @@ export default function MapView({ dayPlan, showZones = true, scrollZoom = true }
       className="leaflet-container"
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
         attribution='&copy; OpenStreetMap contributors &copy; CARTO'
         subdomains="abcd"
       />
@@ -65,10 +65,10 @@ export default function MapView({ dayPlan, showZones = true, scrollZoom = true }
             radius={c.radiusKm * 1000}
             pathOptions={{
               color: c.color,
-              weight: 1.2,
-              opacity: 0.5,
+              weight: 1.6,
+              opacity: 0.6,
               fillColor: c.color,
-              fillOpacity: 0.09,
+              fillOpacity: 0.1,
             }}
           />
         ))}

@@ -357,6 +357,9 @@ Append an entry whenever you change the app, then commit.
 - **v0.22** — Themed login screen: split card with a gradient "care +
   touring" hero (brand mark, route illustration, feature points) and a
   polished sign-in form with field icons.
+- **v0.23** — UI polish: colored basemap (CARTO Voyager instead of the grey
+  Positron tiles) and refined control-panel buttons — gradient GO button,
+  hover/active states and smooth transitions throughout.
 
 ---
 
