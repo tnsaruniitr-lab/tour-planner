@@ -3,6 +3,7 @@
 
 const ROWS_KEY = 'touring_actual_rows_v1';
 const SEL_KEY = 'touring_actual_sel_v1';
+const TRAVEL_KEY = 'touring_actual_travel_v1';
 
 export function loadTourRows() {
   try {
@@ -36,10 +37,27 @@ export function saveSelection(sel) {
   }
 }
 
+export function loadTourTravel() {
+  try {
+    return JSON.parse(localStorage.getItem(TRAVEL_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function saveTourTravel(map) {
+  try {
+    localStorage.setItem(TRAVEL_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function clearTourStore() {
   try {
     localStorage.removeItem(ROWS_KEY);
     localStorage.removeItem(SEL_KEY);
+    localStorage.removeItem(TRAVEL_KEY);
   } catch {
     /* ignore */
   }

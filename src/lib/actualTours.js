@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import { hhmmToMin } from './schedule';
 import { clusterColor } from './colors';
+import { fetchTravelMatrix, straightLineMatrix } from './osrm';
 
 // Sentinel value for the "show every tour" dropdown entry.
 export const ALL_TOURS = '__all__';
@@ -50,6 +51,7 @@ export function buildTours(rows) {
         shiftStart: (r.shiftstart || '').trim(),
         shiftEnd: (r.shiftend || '').trim(),
         shiftDuration: num(r.shiftduration),
+        serviceTimeMin: num(r.servicetimemin),
         servicePct: num(r.servicepct),
         travelPct: num(r.travelpct),
         waitingPct: num(r.waitingpct),
@@ -106,4 +108,16 @@ export function tourToCluster(tour, index = 0) {
     center: { lat: 0, lng: 0 },
     radiusKm: 0,
   };
+}
+
+// Total driving time for a tour in minutes — summed consecutive legs in visit
+// order. OSRM road time inflated 1.5x for traffic; straight-line fallback.
+export async function computeTourTravelMin(tour) {
+  const pts = tour.visits;
+  if (pts.length < 2) return 0;
+  let matrix = await fetchTravelMatrix(pts, 50);
+  if (!matrix) matrix = straightLineMatrix(pts, 30, 50);
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) total += matrix[i][i + 1] || 0;
+  return total;
 }

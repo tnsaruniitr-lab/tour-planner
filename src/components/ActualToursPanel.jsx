@@ -11,6 +11,8 @@ function fmtDuration(min) {
   return `${m}m`;
 }
 
+const pct = (x) => (x == null ? '—' : (x * 100).toFixed(1) + '%');
+
 export default function ActualToursPanel({
   toursStatus,
   toursErr,
@@ -29,10 +31,13 @@ export default function ActualToursPanel({
   onToggleTour,
   amPmCutoff,
   onCutoffChange,
+  tourTravel,
+  onComputeEfficiency,
+  effComputing,
 }) {
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
 
-  // Classify each tour Morning/Evening by shift start vs. the cutoff.
+  // Morning/Evening classification by shift start vs. the cutoff.
   const cutoff = hhmmToMin(amPmCutoff);
   const decorated = toursForDate.map((t, i) => ({
     t,
@@ -41,6 +46,39 @@ export default function ActualToursPanel({
   }));
   const morning = decorated.filter((d) => !d.evening);
   const evening = decorated.filter((d) => d.evening);
+
+  // Efficiency = service / (service + travel). Travel = OSRM x1.5. No rounding.
+  const travelOf = (t) => tourTravel[t.key];
+  const effOf = (t) => {
+    const tr = travelOf(t);
+    if (tr == null) return null;
+    const svc = t.serviceTimeMin || 0;
+    return svc + tr > 0 ? svc / (svc + tr) : 0;
+  };
+  const groupEff = (list) => {
+    let svc = 0;
+    let tot = 0;
+    for (const { t } of list) {
+      const tr = travelOf(t);
+      if (tr == null) continue;
+      svc += t.serviceTimeMin || 0;
+      tot += (t.serviceTimeMin || 0) + tr;
+    }
+    return tot > 0 ? svc / tot : null;
+  };
+  const haveTravel = toursForDate.some((t) => travelOf(t) != null);
+  const allComputed =
+    toursForDate.length > 0 && toursForDate.every((t) => travelOf(t) != null);
+
+  // Shift-length distribution — shift hours rounded UP to the next whole hour.
+  const buckets = {};
+  for (const t of toursForDate) {
+    const h = Math.ceil((t.shiftDuration || 0) / 60);
+    buckets[h] = (buckets[h] || 0) + 1;
+  }
+  const bucketHours = Object.keys(buckets)
+    .map(Number)
+    .sort((a, b) => b - a);
 
   const renderRow = ({ t, i }) => (
     <label className="legend-item" key={t.key}>
@@ -159,6 +197,84 @@ export default function ActualToursPanel({
 
           <div className="tour-group-title">Evening ({evening.length})</div>
           <div className="legend">{evening.map(renderRow)}</div>
+        </div>
+      )}
+
+      {isAllView && toursForDate.length > 0 && (
+        <div className="section">
+          <div className="section-title">Efficiency &amp; shifts</div>
+
+          {!allComputed && (
+            <button
+              className="btn btn-block"
+              onClick={onComputeEfficiency}
+              disabled={effComputing}
+            >
+              {effComputing
+                ? 'Computing road travel…'
+                : 'Calculate efficiency (OSRM)'}
+            </button>
+          )}
+
+          {haveTravel && (
+            <>
+              <div className="summary" style={{ marginTop: 8 }}>
+                <div className="stat">
+                  <span>Morning efficiency</span>
+                  <b>{pct(groupEff(morning))}</b>
+                </div>
+                <div className="stat">
+                  <span>Evening efficiency</span>
+                  <b>{pct(groupEff(evening))}</b>
+                </div>
+              </div>
+              <p className="note">
+                Efficiency = service ÷ (service + travel). Travel = OSRM road
+                time × 1.5 for traffic.
+              </p>
+              <details className="collapsible">
+                <summary>Efficiency by tour</summary>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Tour</th>
+                      <th>Service</th>
+                      <th>Travel</th>
+                      <th>Eff.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {toursForDate.map((t) => (
+                      <tr key={t.key}>
+                        <td>{t.shortId}</td>
+                        <td>{fmtDuration(t.serviceTimeMin)}</td>
+                        <td>{fmtDuration(travelOf(t))}</td>
+                        <td>{pct(effOf(t))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
+          )}
+
+          <div className="tour-group-title">Shift length distribution</div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Shift length</th>
+                <th>Shifts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bucketHours.map((h) => (
+                <tr key={h}>
+                  <td>{h}h</td>
+                  <td>{buckets[h]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -205,6 +205,11 @@ Append a new entry whenever you change the app, then commit.
 - **v0.7** — Actual-tours All-tours view: per-tour visibility checkboxes
   (toggle a tour on/off the map), legend split into Morning / Evening groups
   by a configurable shift-start cutoff.
+- **v0.8** — Actual-tours efficiency: per-tour road travel via OSRM ×1.5
+  (traffic), Morning/Evening aggregate efficiency = service ÷ (service +
+  travel), collapsible per-tour efficiency table, shift-length distribution
+  table (shift hours rounded up to the next whole hour; efficiency itself
+  is never rounded). Computed travel is cached in localStorage.
 
 ---
 

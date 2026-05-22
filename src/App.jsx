@@ -12,6 +12,7 @@ import {
   rowKey,
   buildTours,
   tourToCluster,
+  computeTourTravelMin,
   ALL_TOURS,
 } from './lib/actualTours';
 import {
@@ -19,6 +20,8 @@ import {
   saveTourRows,
   loadSelection,
   saveSelection,
+  loadTourTravel,
+  saveTourTravel,
   clearTourStore,
 } from './lib/tourStore';
 
@@ -77,6 +80,8 @@ export default function App() {
   const [toursErr, setToursErr] = useState(false);
   const [hiddenTours, setHiddenTours] = useState({});
   const [amPmCutoff, setAmPmCutoff] = useState('12:00');
+  const [tourTravel, setTourTravel] = useState(loadTourTravel);
+  const [effComputing, setEffComputing] = useState(false);
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -289,10 +294,31 @@ export default function App() {
     setToursStatus('');
     setToursErr(false);
     setHiddenTours({});
+    setTourTravel({});
   }
 
   function onToggleTour(key) {
     setHiddenTours((h) => ({ ...h, [key]: !h[key] }));
+  }
+
+  async function onComputeEfficiency() {
+    setEffComputing(true);
+    try {
+      const updated = { ...tourTravel };
+      const todo = toursForDate.filter((t) => updated[t.key] == null);
+      for (let i = 0; i < todo.length; i += 6) {
+        const batch = todo.slice(i, i + 6);
+        await Promise.all(
+          batch.map(async (t) => {
+            updated[t.key] = await computeTourTravelMin(t);
+          })
+        );
+      }
+      setTourTravel(updated);
+      saveTourTravel(updated);
+    } finally {
+      setEffComputing(false);
+    }
   }
 
   return (
@@ -355,6 +381,9 @@ export default function App() {
             onToggleTour={onToggleTour}
             amPmCutoff={amPmCutoff}
             onCutoffChange={setAmPmCutoff}
+            tourTravel={tourTravel}
+            onComputeEfficiency={onComputeEfficiency}
+            effComputing={effComputing}
           />
         )}
       </div>
