@@ -177,10 +177,10 @@ export default function ActualToursPanel({
         <div className="section-title">Tour data</div>
         <div className="upload-row">
           <label className="btn btn-file">
-            Upload CSV(s)
+            Upload file(s)
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               multiple
               hidden
               onChange={(e) => {
@@ -197,8 +197,9 @@ export default function ActualToursPanel({
           <div className={'status' + (toursErr ? ' err' : '')}>{toursStatus}</div>
         ) : (
           <p className="note">
-            Upload one or more actual-tours CSV files. Loaded tours are saved in
-            this browser, so they reload automatically next time.
+            Upload one or more actual-tours files (CSV or Excel .xlsx). Loaded
+            tours are saved in this browser, so they reload automatically next
+            time.
           </p>
         )}
         {dates.length > 0 && (

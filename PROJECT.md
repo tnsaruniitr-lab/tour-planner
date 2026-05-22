@@ -41,6 +41,7 @@ Node 18+. Build: `npm run build`.
 - **React 18 + Vite 5** — UI and dev server
 - **Leaflet + react-leaflet** — maps, CartoDB Positron (minimal) basemap
 - **Papaparse** — CSV parsing
+- **SheetJS (`xlsx`)** — reads `.xlsx` / `.xls` uploads (converted to CSV)
 - **OSRM** public Table service (`router.project-osrm.org`) — road travel times
 - **OSM Nominatim** — geocoding addresses that lack lat/lng
 - Persistence: **browser localStorage**
@@ -65,6 +66,7 @@ touring-app/
     lib/
       geo.js                   lat/lng projection, haversine, coverage radius
       csv.js                   patient CSV parser
+      workbook.js              file reader — .csv / .xlsx / .xls → CSV text
       cluster.js               capacitated k-means (heterogeneous caps, slack)
       route.js                 nearest-neighbour + 2-opt ordering
       schedule.js              tour time-simulation, 3h-gap reconnector, hh:mm utils
@@ -131,7 +133,12 @@ Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map.
 
 ## 6. Data formats
 
-**Planner patient CSV** (`sample-patients.csv`):
+Both uploads accept **CSV or Excel (`.xlsx` / `.xls`)** — a spreadsheet's
+first sheet is read and converted to CSV (`workbook.js`), so the columns are
+identical either way. Headers are case-insensitive and spaces count as
+underscores (`Service Time` = `service_time`).
+
+**Planner patient CSV / Excel** (`sample-patients.csv`):
 `name, address, service_time, days_per_week, visits_per_day, lat, lng`
 (`lat`/`lng` optional — geocoded via Nominatim if absent.)
 
@@ -297,6 +304,9 @@ Append an entry whenever you change the app, then commit.
   mode extended to a 7-day operating week with weekday-preferred day
   assignment (Sat/Sun carry only 6- and 7-day patients). New "Week shift plan"
   table summarising nurses + shift mix + visits per day.
+- **v0.15** — Excel uploads: both the planner and actual-tours uploads now
+  accept `.xlsx` / `.xls` as well as `.csv` (`workbook.js`, via SheetJS).
+  Headers are tolerant of spaces and a few alternate spellings.
 
 ---
 

@@ -62,10 +62,10 @@ export default function ControlPanel({
         <div className="section-title">Patients</div>
         <div className="upload-row">
           <label className="btn btn-file">
-            Upload CSV
+            Upload file
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               hidden
               onChange={(e) => {
                 if (e.target.files[0]) onUpload(e.target.files[0]);
@@ -80,7 +80,7 @@ export default function ControlPanel({
         <p className="note">
           {patientCount
             ? `${patientCount} patients loaded — ${sourceLabel}`
-            : 'CSV columns: name, address, service_time, days_per_week, visits_per_day, lat, lng'}
+            : 'CSV or Excel (.xlsx) — columns: name, address, service_time, days_per_week, visits_per_day, lat, lng'}
         </p>
       </div>
 

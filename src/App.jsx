@@ -3,6 +3,7 @@ import ControlPanel from './components/ControlPanel';
 import ActualToursPanel from './components/ActualToursPanel';
 import MapView from './components/MapView';
 import { parsePatientsCSV } from './lib/csv';
+import { fileToCSV } from './lib/workbook';
 import { getSampleData } from './lib/sampleData';
 import { geocodePatients } from './lib/geocode';
 import { buildPlan } from './lib/pipeline';
@@ -203,9 +204,9 @@ export default function App() {
 
   async function onUpload(file) {
     try {
-      const text = await file.text();
+      const text = await fileToCSV(file);
       const parsed = parsePatientsCSV(text);
-      if (!parsed.length) throw new Error('No rows found in CSV.');
+      if (!parsed.length) throw new Error('No rows found in the file.');
       setPatients(parsed);
       setSourceLabel(file.name);
       clearPlan();
@@ -308,7 +309,7 @@ export default function App() {
   async function onToursUpload(fileList) {
     try {
       const texts = await Promise.all(
-        Array.from(fileList).map((f) => f.text())
+        Array.from(fileList).map((f) => fileToCSV(f))
       );
       ingestTourTexts(texts);
     } catch (err) {
