@@ -77,6 +77,7 @@ touring-app/
       sampleData.js            built-in planner sample dataset (London)
       actualTours.js           actual-tours CSV parser + tour model
       tourStore.js             localStorage persistence for actual tours
+      patientStore.js          localStorage persistence for the planner upload
       reassemble.js            re-plan actual visits into circular tours
 ```
 
@@ -88,6 +89,10 @@ touring-app/
 
 Flow: upload patients (or "Load sample") → set shifts → **GO** → geocode →
 cluster → route → schedule → render.
+
+- The last uploaded file is **persisted to localStorage** (`patientStore.js`)
+  and auto-restored on reload; a "Load saved" button reloads it on demand,
+  "Clear saved" forgets it. "Load sample" still loads the built-in dataset.
 
 - **Capacity modes:**
   - *Auto* — you give only a max shift length + target utilisation; the tool
@@ -307,6 +312,9 @@ Append an entry whenever you change the app, then commit.
 - **v0.15** — Excel uploads: both the planner and actual-tours uploads now
   accept `.xlsx` / `.xls` as well as `.csv` (`workbook.js`, via SheetJS).
   Headers are tolerant of spaces and a few alternate spellings.
+- **v0.16** — The planner upload is persisted to localStorage
+  (`patientStore.js`): the last file is auto-restored on reload, with
+  "Load saved" / "Clear saved" controls alongside "Load sample".
 
 ---
 

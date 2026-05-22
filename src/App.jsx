@@ -4,6 +4,11 @@ import ActualToursPanel from './components/ActualToursPanel';
 import MapView from './components/MapView';
 import { parsePatientsCSV } from './lib/csv';
 import { fileToCSV } from './lib/workbook';
+import {
+  loadSavedPatients,
+  saveUploadedPatients,
+  clearSavedPatients,
+} from './lib/patientStore';
 import { getSampleData } from './lib/sampleData';
 import { geocodePatients } from './lib/geocode';
 import { buildPlan } from './lib/pipeline';
@@ -56,8 +61,16 @@ export default function App() {
   const [appMode, setAppMode] = useState('plan');
 
   // ---- Planner state ----
-  const [patients, setPatients] = useState([]);
-  const [sourceLabel, setSourceLabel] = useState('');
+  // The last uploaded file is restored from localStorage on load.
+  const [patients, setPatients] = useState(
+    () => loadSavedPatients()?.patients || []
+  );
+  const [sourceLabel, setSourceLabel] = useState(
+    () => loadSavedPatients()?.label || ''
+  );
+  const [hasSavedUpload, setHasSavedUpload] = useState(
+    () => !!loadSavedPatients()
+  );
   const [mode, setMode] = useState('daily');
   const [capacityMode, setCapacityMode] = useState('auto');
   const [form, setForm] = useState(DEFAULT_FORM);
@@ -209,11 +222,27 @@ export default function App() {
       if (!parsed.length) throw new Error('No rows found in the file.');
       setPatients(parsed);
       setSourceLabel(file.name);
+      // Persist the upload so it survives reloads and is reloadable later.
+      saveUploadedPatients(file.name, parsed);
+      setHasSavedUpload(true);
       clearPlan();
     } catch (err) {
       setStatusMsg(err.message);
       setStatusErr(true);
     }
+  }
+
+  function onLoadSaved() {
+    const saved = loadSavedPatients();
+    if (!saved) return;
+    setPatients(saved.patients);
+    setSourceLabel(saved.label);
+    clearPlan();
+  }
+
+  function onClearSaved() {
+    clearSavedPatients();
+    setHasSavedUpload(false);
   }
 
   function onLoadSample() {
@@ -428,6 +457,9 @@ export default function App() {
             sourceLabel={sourceLabel}
             onUpload={onUpload}
             onLoadSample={onLoadSample}
+            onLoadSaved={onLoadSaved}
+            onClearSaved={onClearSaved}
+            hasSavedUpload={hasSavedUpload}
             mode={mode}
             onModeChange={onModeChange}
             capacityMode={capacityMode}

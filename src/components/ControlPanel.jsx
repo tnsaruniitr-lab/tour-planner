@@ -27,6 +27,9 @@ export default function ControlPanel({
   sourceLabel,
   onUpload,
   onLoadSample,
+  onLoadSaved,
+  onClearSaved,
+  hasSavedUpload,
   mode,
   onModeChange,
   capacityMode,
@@ -73,6 +76,11 @@ export default function ControlPanel({
               }}
             />
           </label>
+          {hasSavedUpload && (
+            <button className="btn" onClick={onLoadSaved}>
+              Load saved
+            </button>
+          )}
           <button className="btn" onClick={onLoadSample}>
             Load sample
           </button>
@@ -82,6 +90,15 @@ export default function ControlPanel({
             ? `${patientCount} patients loaded — ${sourceLabel}`
             : 'CSV or Excel (.xlsx) — columns: name, address, service_time, days_per_week, visits_per_day, lat, lng'}
         </p>
+        {hasSavedUpload && (
+          <p className="note">
+            Your last upload is saved in this browser and reloads
+            automatically.{' '}
+            <button className="link-btn" onClick={onClearSaved}>
+              Clear saved
+            </button>
+          </p>
+        )}
       </div>
 
       <div className="section">
