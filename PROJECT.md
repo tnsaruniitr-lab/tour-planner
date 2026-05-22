@@ -381,6 +381,10 @@ Append an entry whenever you change the app, then commit.
 - **v0.28** — Re-assembly: a second expandable "Per-tour metrics" section —
   one row per tour (visits, efficiency, travel %) for the Actual tours and
   for the File-plan tours, shown as two lists (they don't pair 1:1).
+- **v0.29** — Per-tour metrics reworked into a single side-by-side table:
+  each actual tour is paired with a File-plan tour of the **same shift
+  length** (File mode reuses the file's shift lengths), with Actual and
+  File efficiency side by side. Tours with no match show "—".
 
 ---
 

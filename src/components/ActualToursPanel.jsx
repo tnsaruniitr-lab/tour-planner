@@ -15,6 +15,11 @@ function fmtDuration(min) {
 
 const pct = (x) => (x == null ? '—' : (x * 100).toFixed(1) + '%');
 
+const fmtHrsShort = (min) => {
+  const h = (min || 0) / 60;
+  return (Number.isInteger(h) ? h : Number(h.toFixed(1))) + 'h';
+};
+
 export default function ActualToursPanel({
   toursStatus,
   toursErr,
@@ -429,69 +434,72 @@ export default function ActualToursPanel({
                 );
               })()}
 
-              <details className="collapsible">
-                <summary>Per-tour metrics — Actual vs File plan</summary>
-                <div className="tour-group-title">Actual tours</div>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tour</th>
-                      <th>Visits</th>
-                      <th>Eff</th>
-                      <th>Travel</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {compActTours.map((t) => {
-                      const svc = t.serviceTimeMin || 0;
-                      const tot =
-                        svc + (t.travelTimeMin || 0) + (t.waitingTimeMin || 0);
-                      return (
-                        <tr key={t.key}>
-                          <td>{t.shortId}</td>
-                          <td>{t.visits.length}</td>
-                          <td>{pct(tot > 0 ? svc / tot : null)}</td>
-                          <td>
-                            {pct(tot > 0 ? (t.travelTimeMin || 0) / tot : null)}
-                          </td>
+              {(() => {
+                // Pair each actual tour with a File-plan tour of the same
+                // shift length (File mode reuses the file's shift lengths,
+                // so the lengths match exactly). Spare actuals get "—".
+                const acts = [...compActTours]
+                  .map((t) => {
+                    const svc = t.serviceTimeMin || 0;
+                    const tot =
+                      svc + (t.travelTimeMin || 0) + (t.waitingTimeMin || 0);
+                    return {
+                      id: t.shortId,
+                      shiftMin: t.shiftDuration || 0,
+                      eff: tot > 0 ? svc / tot : null,
+                    };
+                  })
+                  .sort((a, b) => b.shiftMin - a.shiftMin);
+                const filePool = reassembled.file.clusters
+                  .filter((c) => inComp(c.period === 'evening'))
+                  .map((c) => {
+                    const svc = c.serviceMin || 0;
+                    const w = svc + (c.travelMin || 0);
+                    return {
+                      shiftMin: c.shiftLengthMin || 0,
+                      eff: w > 0 ? svc / w : null,
+                    };
+                  });
+                const rows = acts.map((a) => {
+                  const idx = filePool.findIndex(
+                    (f) => f.shiftMin === a.shiftMin
+                  );
+                  const paired = idx >= 0;
+                  const fileEff = paired ? filePool[idx].eff : null;
+                  if (paired) filePool.splice(idx, 1);
+                  return { ...a, fileEff, paired };
+                });
+                return (
+                  <details className="collapsible">
+                    <summary>Per-tour metrics — Actual vs File plan</summary>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Tour</th>
+                          <th>Shift</th>
+                          <th>Actual</th>
+                          <th>File</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <div className="tour-group-title">File plan tours</div>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tour</th>
-                      <th>Visits</th>
-                      <th>Eff</th>
-                      <th>Travel</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reassembled.file.clusters
-                      .filter((c) => inComp(c.period === 'evening'))
-                      .map((c, i) => {
-                        const svc = c.serviceMin || 0;
-                        const w = svc + (c.travelMin || 0);
-                        return (
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
                           <tr key={i}>
-                            <td>{i + 1}</td>
-                            <td>{c.stops ? c.stops.length : 0}</td>
-                            <td>{pct(w > 0 ? svc / w : null)}</td>
-                            <td>{pct(w > 0 ? (c.travelMin || 0) / w : null)}</td>
+                            <td>{r.id}</td>
+                            <td>{fmtHrsShort(r.shiftMin)}</td>
+                            <td>{pct(r.eff)}</td>
+                            <td>{r.paired ? pct(r.fileEff) : '—'}</td>
                           </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-                <p className="note">
-                  Actual and File tours don't pair up — re-assembly re-clusters
-                  every patient — so these are two per-tour lists, not matched
-                  rows. Compare the spread of efficiencies.
-                </p>
-              </details>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="note">
+                      Care efficiency, one row per tour, paired by shift
+                      length. Where the re-plan used fewer tours, the File
+                      cell shows —.
+                    </p>
+                  </details>
+                );
+              })()}
             </>
           )}
         </div>
