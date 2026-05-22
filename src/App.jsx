@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ActualToursPanel from './components/ActualToursPanel';
 import MapView from './components/MapView';
+import Login from './components/Login';
 import { parsePatientsCSV } from './lib/csv';
 import { fileToCSV } from './lib/workbook';
 import {
@@ -82,7 +83,17 @@ function sortTours(list) {
   );
 }
 
+const AUTH_KEY = 'touring_auth_v1';
+
 export default function App() {
+  const [authed, setAuthed] = useState(() => {
+    try {
+      return localStorage.getItem(AUTH_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+
   const [appMode, setAppMode] = useState('plan');
 
   // ---- Planner state ----
@@ -562,6 +573,17 @@ export default function App() {
       return next;
     });
   }
+
+  function handleLogin() {
+    try {
+      localStorage.setItem(AUTH_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+    setAuthed(true);
+  }
+
+  if (!authed) return <Login onLogin={handleLogin} />;
 
   return (
     <div className="app">

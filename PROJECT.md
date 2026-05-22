@@ -68,6 +68,7 @@ touring-app/
     App.jsx                    ALL top-level state, mode switching, both pipelines
     index.css                  all styling
     components/
+      Login.jsx                simple client-side demo login gate
       ControlPanel.jsx         Plan-mode left panel
       ActualToursPanel.jsx     Actual-tours left panel (visualise + re-assemble)
       MapView.jsx              Leaflet map — shared; props: dayPlan, showZones, scrollZoom
@@ -348,6 +349,11 @@ Append an entry whenever you change the app, then commit.
   `start` script, `railway.json`, and an `engines` field. The bundled sample
   CSVs ship inside the build, so a hosted demo keeps its sample data with no
   backend or database.
+- **v0.21** — Simple username/password login gate (`Login.jsx`) so the demo
+  isn't wide open. It is a *client-side* check — credentials are in the
+  bundle, so it deters casual access but is not real security; auth is
+  remembered in localStorage. Swap for real auth if the app ever holds
+  sensitive data.
 
 ---
 

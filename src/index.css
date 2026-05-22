@@ -28,6 +28,38 @@ body { background: var(--bg); }
   overflow: hidden;
 }
 
+/* ---------- Login gate ---------- */
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg);
+}
+.login-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px;
+  width: 320px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+.login-card h1 {
+  font-size: 19px;
+  margin: 0 0 2px;
+}
+.login-card .sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+.login-card .status {
+  margin-top: 10px;
+}
+.login-card .btn-go {
+  margin-top: 16px;
+}
+
 /* ---------- Control panel ---------- */
 .panel {
   width: 360px;
@@ -77,7 +109,8 @@ body { background: var(--bg); }
 
 input[type="text"],
 input[type="number"],
-input[type="time"] {
+input[type="time"],
+input[type="password"] {
   width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--line);
