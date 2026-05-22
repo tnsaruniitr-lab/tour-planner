@@ -33,31 +33,206 @@ body { background: var(--bg); }
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: var(--bg);
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(47, 109, 240, 0.14), transparent 42%),
+    radial-gradient(circle at 88% 86%, rgba(15, 124, 139, 0.14), transparent 42%),
+    var(--bg);
 }
+
 .login-card {
+  display: flex;
+  width: 780px;
+  max-width: 100%;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 28px;
-  width: 320px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(28, 36, 51, 0.22);
 }
-.login-card h1 {
-  font-size: 19px;
-  margin: 0 0 2px;
+
+/* ----- hero / brand side ----- */
+.login-hero {
+  position: relative;
+  flex: 1 1 45%;
+  padding: 34px 30px;
+  color: #fff;
+  background: linear-gradient(158deg, #3f86f7 0%, #2456cf 50%, #0e7c8b 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.login-card .sub {
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.login-logo svg {
+  width: 19px;
+  height: 19px;
+}
+
+.login-hero-body h2 {
+  font-size: 22px;
+  line-height: 1.25;
+  margin: 6px 0 8px;
+}
+.login-hero-body p {
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.login-illus {
+  width: 100%;
+  height: auto;
+}
+.login-illus > circle {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 1.4;
+}
+.login-route {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 8;
+}
+.login-stop circle,
+.login-pin circle {
+  fill: #fff;
+}
+.login-stop text {
+  fill: #2055cc;
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-family: inherit;
+}
+.login-pin path {
+  fill: var(--danger);
+}
+
+.login-points {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.login-points li {
+  position: relative;
+  padding-left: 18px;
   font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+.login-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+/* ----- form side ----- */
+.login-form {
+  flex: 1 1 55%;
+  padding: 42px 38px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.login-form h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.login-sub {
+  font-size: 13px;
   color: var(--muted);
-  margin: 0 0 18px;
+  margin: 0 0 22px;
 }
-.login-card .status {
+.login-form .field {
+  margin-bottom: 14px;
+}
+.login-form .field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+
+.login-input {
+  position: relative;
+}
+.login-input svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.login-input input {
+  padding: 10px 11px 10px 34px;
+}
+
+.login-btn {
   margin-top: 10px;
+  background: linear-gradient(135deg, #3f86f7, #2055cc);
+  transition: filter 0.15s ease;
 }
-.login-card .btn-go {
-  margin-top: 16px;
+.login-btn:hover {
+  background: linear-gradient(135deg, #3f86f7, #2055cc);
+  filter: brightness(1.07);
+}
+
+.login-card .status {
+  margin: 4px 0;
+}
+
+.login-note {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin: 16px 0 0;
+}
+
+@media (max-width: 680px) {
+  .login-card {
+    flex-direction: column;
+    width: 380px;
+  }
+  .login-illus {
+    display: none;
+  }
+  .login-hero {
+    padding: 26px 26px 22px;
+    gap: 12px;
+  }
+  .login-form {
+    padding: 30px 28px;
+  }
 }
 
 /* ---------- Control panel ---------- */

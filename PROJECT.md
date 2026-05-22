@@ -354,6 +354,9 @@ Append an entry whenever you change the app, then commit.
   bundle, so it deters casual access but is not real security; auth is
   remembered in localStorage. Swap for real auth if the app ever holds
   sensitive data.
+- **v0.22** — Themed login screen: split card with a gradient "care +
+  touring" hero (brand mark, route illustration, feature points) and a
+  polished sign-in form with field icons.
 
 ---
 
