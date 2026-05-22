@@ -36,8 +36,6 @@ export default function ActualToursPanel({
   tourTravel,
   onComputeEfficiency,
   effComputing,
-  staffMode,
-  onStaffMode,
   reForm,
   onReField,
   onReassemble,
@@ -45,6 +43,7 @@ export default function ActualToursPanel({
   reassembled,
 }) {
   const [effType, setEffType] = useState('actual');
+  const [compPeriod, setCompPeriod] = useState('both');
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
 
   // Morning/Evening classification by shift start vs. the cutoff.
@@ -57,7 +56,7 @@ export default function ActualToursPanel({
   const morning = decorated.filter((d) => !d.evening);
   const evening = decorated.filter((d) => d.evening);
 
-  // Two efficiency definitions (no rounding in the maths):
+  // Efficiency definitions (no rounding in the maths):
   //  OSRM   = service / (service + OSRM road travel x1.5)
   //  Actual = service / (service + recorded travel + recorded waiting)
   const osrmEff = (t) => {
@@ -91,6 +90,30 @@ export default function ActualToursPanel({
   const allOsrm =
     toursForDate.length > 0 &&
     toursForDate.every((t) => tourTravel[t.key] != null);
+
+  // Re-assembly comparison metrics, filtered by the Morning/Evening selector.
+  const inComp = (isEvening) =>
+    compPeriod === 'both' || (compPeriod === 'evening') === isEvening;
+  const compActTours = toursForDate.filter((t) =>
+    inComp(hhmmToMin(t.shiftStart) >= cutoff)
+  );
+  const compActSvc = compActTours.reduce((s, t) => s + (t.serviceTimeMin || 0), 0);
+  const compActTrv = compActTours.reduce((s, t) => s + (t.travelTimeMin || 0), 0);
+  const compActWork = compActSvc + compActTrv;
+  const compActEff = compActWork > 0 ? compActSvc / compActWork : null;
+  const compActTrvPct = compActWork > 0 ? compActTrv / compActWork : null;
+  const modeMetrics = (m) => {
+    if (!m) return { eff: null, travelPct: null, tours: 0 };
+    const cl = m.clusters.filter((c) => inComp(c.period === 'evening'));
+    const svc = cl.reduce((s, c) => s + (c.serviceMin || 0), 0);
+    const trv = cl.reduce((s, c) => s + (c.travelMin || 0), 0);
+    const w = svc + trv;
+    return {
+      eff: w > 0 ? svc / w : null,
+      travelPct: w > 0 ? trv / w : null,
+      tours: cl.length,
+    };
+  };
 
   // Shift-length distribution — shift hours rounded UP to the next whole hour.
   const bucketTours = {};
@@ -225,70 +248,55 @@ export default function ActualToursPanel({
         <div className="section">
           <div className="section-title">Re-assemble into circular tours</div>
           <p className="note">
-            Re-plan the selected day's visits into clean circular tours —
-            morning and evening kept separate, 2-visit patients kept with one
-            nurse ≥ the gap apart.
+            Re-plan the day's visits into clean circular tours — all three
+            staffing modes at once. Morning/evening kept separate; 2-visit
+            patients kept with one nurse ≥ the gap apart.
           </p>
-          <div className="field">
-            <label>Staffing</label>
-            <select
-              value={staffMode}
-              onChange={(e) => onStaffMode(e.target.value)}
-            >
-              <option value="file">Same nurses &amp; shifts as file</option>
-              <option value="uniform">Uniform shifts</option>
-              <option value="fewest">Fewest nurses</option>
-            </select>
-          </div>
-          {staffMode === 'uniform' && (
-            <>
-              <div className="row">
-                <div className="field">
-                  <label>Morning shift (h)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    value={reForm.mHours}
-                    onChange={(e) => onReField('mHours', e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Morning nurses</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={reForm.mCount}
-                    onChange={(e) => onReField('mCount', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="field">
-                  <label>Evening shift (h)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    value={reForm.eHours}
-                    onChange={(e) => onReField('eHours', e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Evening nurses</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={reForm.eCount}
-                    onChange={(e) => onReField('eCount', e.target.value)}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-          {staffMode === 'fewest' && (
+          <div className="row">
             <div className="field">
-              <label>Max shift length (h)</label>
+              <label>Morning shift (h)</label>
+              <input
+                type="number"
+                min="1"
+                step="0.5"
+                value={reForm.mHours}
+                onChange={(e) => onReField('mHours', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>Morning nurses</label>
+              <input
+                type="number"
+                min="1"
+                value={reForm.mCount}
+                onChange={(e) => onReField('mCount', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="row">
+            <div className="field">
+              <label>Evening shift (h)</label>
+              <input
+                type="number"
+                min="1"
+                step="0.5"
+                value={reForm.eHours}
+                onChange={(e) => onReField('eHours', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>Evening nurses</label>
+              <input
+                type="number"
+                min="1"
+                value={reForm.eCount}
+                onChange={(e) => onReField('eCount', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="row">
+            <div className="field">
+              <label>Max shift, fewest (h)</label>
               <input
                 type="number"
                 min="1"
@@ -297,41 +305,88 @@ export default function ActualToursPanel({
                 onChange={(e) => onReField('maxHours', e.target.value)}
               />
             </div>
-          )}
-          <div className="field">
-            <label>Min gap (hours)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              value={reForm.gapHours}
-              onChange={(e) => onReField('gapHours', e.target.value)}
-            />
+            <div className="field">
+              <label>Min gap (hours)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={reForm.gapHours}
+                onChange={(e) => onReField('gapHours', e.target.value)}
+              />
+            </div>
           </div>
           <button
             className="btn-go"
             onClick={onReassemble}
             disabled={reassembling}
           >
-            {reassembling ? 'Re-assembling…' : 'Re-assemble'}
+            {reassembling
+              ? 'Re-assembling all 3 modes…'
+              : 'Re-assemble — compare 3 modes'}
           </button>
+
           {reassembled && (
-            <div className="summary" style={{ marginTop: 10 }}>
-              <div className="stat">
-                <span>Morning tours</span>
-                <b>{reassembled.morningCount}</b>
+            <>
+              <div className="mode-toggle" style={{ margin: '10px 0 6px' }}>
+                <button
+                  className={compPeriod === 'both' ? 'active' : ''}
+                  onClick={() => setCompPeriod('both')}
+                >
+                  Both
+                </button>
+                <button
+                  className={compPeriod === 'morning' ? 'active' : ''}
+                  onClick={() => setCompPeriod('morning')}
+                >
+                  Morning
+                </button>
+                <button
+                  className={compPeriod === 'evening' ? 'active' : ''}
+                  onClick={() => setCompPeriod('evening')}
+                >
+                  Evening
+                </button>
               </div>
-              <div className="stat">
-                <span>Evening tours</span>
-                <b>{reassembled.eveningCount}</b>
-              </div>
-              <div className="stat">
-                <span>Patients re-planned</span>
-                <b>
-                  {reassembled.morningPatients + reassembled.eveningPatients}
-                </b>
-              </div>
-            </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Actual</th>
+                    <th>File</th>
+                    <th>Uniform</th>
+                    <th>Fewest</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Efficiency</td>
+                    <td>{pct(compActEff)}</td>
+                    <td>{pct(modeMetrics(reassembled.file).eff)}</td>
+                    <td>{pct(modeMetrics(reassembled.uniform).eff)}</td>
+                    <td>{pct(modeMetrics(reassembled.fewest).eff)}</td>
+                  </tr>
+                  <tr>
+                    <td>Travel</td>
+                    <td>{pct(compActTrvPct)}</td>
+                    <td>{pct(modeMetrics(reassembled.file).travelPct)}</td>
+                    <td>{pct(modeMetrics(reassembled.uniform).travelPct)}</td>
+                    <td>{pct(modeMetrics(reassembled.fewest).travelPct)}</td>
+                  </tr>
+                  <tr>
+                    <td>Tours</td>
+                    <td>{compActTours.length}</td>
+                    <td>{modeMetrics(reassembled.file).tours}</td>
+                    <td>{modeMetrics(reassembled.uniform).tours}</td>
+                    <td>{modeMetrics(reassembled.fewest).tours}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="note">
+                Efficiency = service ÷ (service + travel). Toggle Morning /
+                Evening / Both above. A map for each mode shows below.
+              </p>
+            </>
           )}
         </div>
       )}

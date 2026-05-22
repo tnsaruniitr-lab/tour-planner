@@ -158,13 +158,17 @@ function runKmeans(items, caps) {
 
 // Cluster items into caps.length groups. Returns clusters aligned to the
 // caps array (index i used caps[i]); some buckets may be empty.
-export function clusterItems(items, caps, restarts = 8) {
+export function clusterItems(items, caps, slack = 1, restarts = 8) {
   const k = caps.length;
   if (!items.length || k === 0) return { clusters: [] };
 
+  // Cap slack gives the clustering room to keep boundary points with their
+  // nearest centroid instead of pushing them away — rounder, tighter zones.
+  const workCaps = slack === 1 ? caps : caps.map((c) => c * slack);
+
   let best = null;
   for (let r = 0; r < restarts; r++) {
-    const run = runKmeans(items, caps);
+    const run = runKmeans(items, workCaps);
     if (!best || run.cost < best.cost) best = run;
   }
 

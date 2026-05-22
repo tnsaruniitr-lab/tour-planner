@@ -118,7 +118,7 @@ async function planDay(patients, settings) {
 
   const projected = projectToPlane(fits);
   const caps = activeShifts.map((s) => s.lengthMin * SERVICE_SHARE);
-  const { clusters } = clusterItems(projected, caps);
+  const { clusters } = clusterItems(projected, caps, settings.capSlack || 1);
 
   // Match the heaviest zone to the longest shift, next to next, and so on.
   const nonEmpty = clusters

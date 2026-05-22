@@ -38,8 +38,9 @@ export function centroidLatLng(items) {
   };
 }
 
-// Radius (km) that covers the given percentile of members — robust to outliers.
-export function coverageRadiusKm(center, items, percentile = 0.82) {
+// Radius (km) covering the given percentile of members — a tight "core"
+// circle keeps overlapping zones readable.
+export function coverageRadiusKm(center, items, percentile = 0.65) {
   const d = items.map((p) => haversine(center, p)).sort((a, b) => a - b);
   const idx = Math.min(d.length - 1, Math.floor(percentile * d.length));
   return Math.max(d[idx], 0.15);

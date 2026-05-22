@@ -90,7 +90,9 @@ export async function reassembleDay(tours, opts) {
   const morningShifts = buildRoster('morning', morningTours, morningPatients, opts);
   const eveningShifts = buildRoster('evening', eveningTours, eveningPatients, opts);
 
-  const base = { gapMin: opts.gapMin, bufferPct: 35, speedKmh: 30 };
+  // Cap slack lets the clustering favour compact, round zones over an exact
+  // capacity fit — tours may run slightly over shift.
+  const base = { gapMin: opts.gapMin, bufferPct: 35, speedKmh: 30, capSlack: 1.1 };
 
   const [mRun, eRun] = await Promise.all([
     morningShifts.length
@@ -103,17 +105,32 @@ export async function reassembleDay(tours, opts) {
 
   const mClusters = mRun ? mRun.days.Day.clusters : [];
   const eClusters = eRun ? eRun.days.Day.clusters : [];
-  const clusters = [...mClusters, ...eClusters].map((c, i) => ({
-    ...c,
-    id: i,
-    color: clusterColor(i),
-  }));
+  const clusters = [
+    ...mClusters.map((c) => ({ ...c, period: 'morning' })),
+    ...eClusters.map((c) => ({ ...c, period: 'evening' })),
+  ].map((c, i) => ({ ...c, id: i, color: clusterColor(i) }));
+
+  const serviceMin = clusters.reduce((s, c) => s + (c.serviceMin || 0), 0);
+  const travelMin = clusters.reduce((s, c) => s + (c.travelMin || 0), 0);
+  const working = serviceMin + travelMin;
 
   return {
     clusters,
+    tours: clusters.length,
     morningCount: mClusters.length,
     eveningCount: eClusters.length,
-    morningPatients: morningPatients.length,
-    eveningPatients: eveningPatients.length,
+    serviceMin,
+    travelMin,
+    efficiency: working > 0 ? serviceMin / working : 0,
+    travelPct: working > 0 ? travelMin / working : 0,
   };
+}
+
+// Run all three staffing modes for the day (sequentially, to stay gentle on
+// the OSRM server) — returns one result per mode.
+export async function reassembleAll(tours, baseOpts) {
+  const file = await reassembleDay(tours, { ...baseOpts, mode: 'file' });
+  const uniform = await reassembleDay(tours, { ...baseOpts, mode: 'uniform' });
+  const fewest = await reassembleDay(tours, { ...baseOpts, mode: 'fewest' });
+  return { file, uniform, fewest };
 }

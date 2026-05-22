@@ -380,11 +380,11 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-y: auto;
 }
 .map-pane {
-  flex: 1;
+  flex: 1 0 78vh;
   position: relative;
-  min-height: 0;
 }
 .map-pane + .map-pane {
   border-top: 3px solid var(--line);

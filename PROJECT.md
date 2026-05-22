@@ -1,24 +1,26 @@
-# Outpatient Touring — Project Handoff
+# Outpatient Touring — Product & Handoff Doc
 
-> Hand this file to a new chat to continue work without losing context.
-> It describes what the app is, how it's built, every design decision, and the
-> current status. Read this first, then the file map in section 4.
+> **Read this first.** It is the single source of truth for the project: what it
+> is, how it's built, every algorithm, every design decision, and the full
+> history. A new contributor (or a fresh AI context window) should be able to
+> read this top-to-bottom and continue confidently.
 
 ---
 
 ## 1. What this is
 
 A browser app for **outpatient / home-healthcare agencies** to plan and
-visualise nurse tours. It has **two modes**, switched by the toggle at the top
-of the left panel:
+analyse nurse tours. Two modes, switched by the toggle at the top-left:
 
-- **Plan** — upload a list of patient visits; the app clusters them into clean,
-  circular geographic tours, routes each tour, schedules visit times, and shows
+- **Plan** — upload patient visits; the app clusters them into clean, circular
+  geographic tours, routes each tour, schedules visit times, and reports
   efficiency metrics.
 - **Actual tours** — upload real *completed* tour CSVs (the agency's historical
-  data) and visualise each nurse's actual route on the map.
+  data), visualise each nurse's actual route, score efficiency, and
+  **re-assemble** the day into optimised circular tours for comparison.
 
-Fully client-side. No backend, no database. Runs locally.
+Fully client-side. No backend, no database. State persists in browser
+localStorage.
 
 ---
 
@@ -27,21 +29,21 @@ Fully client-side. No backend, no database. Runs locally.
 ```
 cd touring-app
 npm install
-npm run dev
+npm run dev        # → http://localhost:5173
 ```
 
-Open http://localhost:5173 . Requires Node 18+.
+Node 18+. Build: `npm run build`.
 
 ---
 
 ## 3. Tech stack
 
 - **React 18 + Vite 5** — UI and dev server
-- **Leaflet + react-leaflet** — map, with the CartoDB Positron (minimal) basemap
+- **Leaflet + react-leaflet** — maps, CartoDB Positron (minimal) basemap
 - **Papaparse** — CSV parsing
-- **OSRM** public server (`router.project-osrm.org`) — road travel-time matrix
+- **OSRM** public Table service (`router.project-osrm.org`) — road travel times
 - **OSM Nominatim** — geocoding addresses that lack lat/lng
-- Persistence: **browser localStorage** (no server)
+- Persistence: **browser localStorage**
 
 ---
 
@@ -50,30 +52,30 @@ Open http://localhost:5173 . Requires Node 18+.
 ```
 touring-app/
   index.html, vite.config.js, package.json
-  public/
-    sample-tours.csv      bundled actual-tour data (3 days, ~390 visits)
-  sample-patients.csv     example planner-upload format
+  public/sample-tours.csv      bundled actual-tour data (3 days, ~390 visits)
+  sample-patients.csv          example planner-upload format
   src/
-    main.jsx              entry
-    App.jsx               ALL top-level state, mode switching, both pipelines
-    index.css             all styling
+    main.jsx                   entry
+    App.jsx                    ALL top-level state, mode switching, both pipelines
+    index.css                  all styling
     components/
-      ControlPanel.jsx    Plan-mode left panel
-      ActualToursPanel.jsx Actual-tours left panel
-      MapView.jsx         Leaflet map (shared by both modes; showZones prop)
+      ControlPanel.jsx         Plan-mode left panel
+      ActualToursPanel.jsx     Actual-tours left panel (visualise + re-assemble)
+      MapView.jsx              Leaflet map — shared; props: dayPlan, showZones, scrollZoom
     lib/
-      geo.js              lat/lng projection, haversine, coverage radius
-      csv.js              patient CSV parser
-      cluster.js          capacitated k-means (per-cluster capacities)
-      route.js            nearest-neighbour + 2-opt ordering
-      schedule.js         tour time-simulation, 3h-gap reconnector, hh:mm utils
-      osrm.js             OSRM travel-time matrix + straight-line fallback
-      days.js             weekly day-distribution (load balancing)
-      colors.js           categorical colour palette
-      pipeline.js         Plan-mode orchestration (cluster→route→schedule)
-      actualTours.js      actual-tours CSV parser + tour model + map conversion
-      tourStore.js        localStorage persistence for actual tours
-      sampleData.js       built-in planner sample dataset (London)
+      geo.js                   lat/lng projection, haversine, coverage radius
+      csv.js                   patient CSV parser
+      cluster.js               capacitated k-means (heterogeneous caps, slack)
+      route.js                 nearest-neighbour + 2-opt ordering
+      schedule.js              tour time-simulation, 3h-gap reconnector, hh:mm utils
+      osrm.js                  OSRM travel-time matrix + straight-line fallback
+      days.js                  weekly day-distribution (LPT load balancing)
+      colors.js                categorical colour palette
+      pipeline.js              Plan-mode orchestration (cluster → route → schedule)
+      sampleData.js            built-in planner sample dataset (London)
+      actualTours.js           actual-tours CSV parser + tour model
+      tourStore.js             localStorage persistence for actual tours
+      reassemble.js            re-plan actual visits into circular tours
 ```
 
 ---
@@ -85,31 +87,34 @@ touring-app/
 Flow: upload patients (or "Load sample") → set shifts → **GO** → geocode →
 cluster → route → schedule → render.
 
-- **Capacity modes:**
-  - *Uniform* — one shift window + a nurse count; all tours the same length.
-  - *Roster* — a table of `nurses × hours × start time` rows; tours are sized to
-    fit each specific shift.
-- **Clustering** groups patients into geographic zones, each capped by a shift's
-  capacity. More clusters are auto-added if a tour would exceed its cap.
-- **Routing** orders each cluster with nearest-neighbour + 2-opt.
-- **Scheduling** assigns clock times; a patient with multiple same-day visits
-  gets repeat visits ≥ 3h apart, modelled as real return legs ("reconnector").
-- **Metrics** — per-tour utilisation; per-day care/travel/working time,
-  utilisation, care efficiency.
+- **Capacity modes:** *Uniform* (one shift window + nurse count) or *Roster*
+  (a table of `nurses × hours × start time`; tours sized to each shift).
+- Clustering groups patients into circular zones capped by shift capacity;
+  more clusters are auto-added if a tour would exceed its cap.
+- Multi-visit patients get repeat visits ≥3h apart as real return legs.
+- Metrics: per-tour utilisation; per-day care/travel/working time, utilisation,
+  care efficiency.
 
-### Actual tours mode (`ActualToursPanel.jsx`, `actualTours.js`)
+### Actual tours mode (`ActualToursPanel.jsx`, `actualTours.js`, `reassemble.js`)
 
-Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map shows it.
+Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map.
 
-- Rows are grouped by `dateOfService` + `tourId`; visits sorted by sequence.
-- **Date dropdown** then **tour/nurse dropdown**. First entry is **★ All tours**
-  (every tour for that date, colour-coded at once).
-- Shows only the selected tour (numbered markers in visit order, straight
-  connectors) or all tours together.
-- Visits with no coordinates are excluded from the map and flagged.
-- **Persistence:** uploaded data is saved to localStorage and auto-restored on
-  reload. "Clear saved data" wipes it. "Load saved" loads the bundled
-  `public/sample-tours.csv`.
+- Rows grouped by `dateOfService` + `tourId`; visits sorted by sequence.
+- **Date** dropdown → **tour/nurse** dropdown; first entry **★ All tours**
+  (every tour, colour-coded, with per-tour and Morning/Evening checkboxes).
+- Visits with no coordinates are excluded and flagged.
+- **Persistence:** uploaded data + selection saved to localStorage, auto-restored.
+- **Efficiency & shifts:** OSRM vs Actual efficiency (per group + per-tour
+  toggle); shift-length distribution with selectable tour-ID chips.
+- **Re-assemble into circular tours:** re-plans the selected day's visits
+  through the planner. Runs **all three staffing modes at once**
+  (same-as-file / uniform / fewest-nurses). Morning and evening pools are
+  planned separately and never mixed; a patient with visits in both periods
+  is kept split; repeat visits in a period stay with one nurse ≥ the gap
+  apart; start times are not pinned. Output: a **comparison table**
+  (Actual vs the 3 modes — efficiency, travel %, tours; with a
+  Morning/Evening/Both selector) and **a map per mode stacked below** the
+  actual map. The Morning/Evening checkboxes hide that period on every map.
 
 ---
 
@@ -117,137 +122,163 @@ Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map sh
 
 **Planner patient CSV** (`sample-patients.csv`):
 `name, address, service_time, days_per_week, visits_per_day, lat, lng`
-(`lat`/`lng` optional — if absent the row is geocoded via Nominatim.)
+(`lat`/`lng` optional — geocoded via Nominatim if absent.)
 
 **Actual-tours CSV** (`public/sample-tours.csv`): 25 columns, one row per visit —
 `tourId, nurseName, staffId, visitSequence, visitId, patientName, locationId,
 patientAddress, latitude, longitude, shiftStart, shiftEnd, shiftDuration,
 visitTime, estimatedArrival, patientWindowStart, patientWindowEnd,
 visitDurationMin, travelTimeMin, waitingTimeMin, serviceTimeMin, servicePct,
-travelPct, waitingPct, dateOfService`. Rows may be unsorted; the parser groups
-and sorts them.
+travelPct, waitingPct, dateOfService`. Rows may be unsorted; the parser
+groups and sorts them. `travelTimeMin`/`waitingTimeMin`/`serviceTimeMin` are
+tour totals.
 
 ---
 
-## 7. Key design decisions (and why)
+## 7. Algorithms (how it actually works)
 
-1. **Cluster-first, route-second.** A global VRP optimiser produces interleaved,
-   messy territories. The agency prioritised *visually clean, circular* tours, so
-   clustering defines territories first, then each is routed.
-2. **Capacitated k-means** with **regret-based assignment** + a **local-search
-   refine** step — plain k-means produced a cluster straddling two
-   neighbourhoods. Regret + refine removes those long "spike" outliers.
-3. **Coordinate projection** scales longitude by cos(latitude) so clusters render
-   as true circles, not latitude-stretched ellipses.
-4. **2-opt routing** — a 2-opt-optimal Euclidean path has no self-crossings, so
-   routes look tidy.
-5. **OSRM road travel times**, inflated by a configurable **traffic buffer %**
-   (default 35) for traffic/parking. Clustering deliberately stays straight-line
-   (road-time clustering would distort circle shapes). Falls back to
-   straight-line if OSRM is unreachable.
-6. **Multi-visit reconnector** — a patient's repeat same-day visit is its own
-   stop at the same address, woven back into the route once the 3h gap elapses;
-   its return travel is counted. (User chose "real return leg, counted".)
-7. **Roster mode** uses **heterogeneous capacities** in the clustering; the
-   heaviest zone is matched to the longest shift. Work is spread across **all**
-   rostered nurses (user's choice), and each shift can have its **own start
-   time**.
-8. **Actual-tours visualiser** shows **one tour at a time** by default, plus an
-   **All tours** option; routes drawn with **straight lines** (user's choices).
-9. **localStorage persistence** so a tour being worked on survives reloads
-   without re-uploading.
+1. **Geocoding** (`geocode.js`) — addresses without lat/lng geocoded via OSM
+   Nominatim, sequentially at ~1 req/sec, cached in localStorage by address.
 
----
+2. **Coordinate projection** (`geo.js`) — lat/lng → planar km grid
+   (equirectangular: longitude scaled by cos(mean latitude)). Clustering runs
+   in this planar space so zones render as true circles, not latitude-
+   stretched ellipses.
 
-## 8. Current status — works and verified
+3. **Capacitated k-means clustering** (`cluster.js`) — the core territory
+   algorithm:
+   - *k-means++ seeding* — initial centroids spread out (distance-weighted).
+   - *Regret-based capacitated assignment* — each point's regret = gap between
+     its nearest and second-nearest centroid; points placed highest-regret
+     first into the nearest centroid with remaining capacity.
+   - *Lloyd iteration* — recompute centroids (mean of members), reassign.
+   - *Capacity-aware local-search refine* — move a point to a nearer centroid
+     with room; swap two points between clusters when it cuts total squared
+     distance. Removes long "spike" outliers.
+   - *Heterogeneous per-cluster capacities* — each centroid can have its own
+     cap (the roster: varied shift lengths).
+   - *Cap slack* — clusters may run slightly over capacity (a slack multiplier)
+     so boundary points stay with their nearest centroid → rounder zones.
+   - *Multi-restart* — several seeds; keep the lowest within-cluster squared
+     distance.
 
-- Plan mode: daily + weekly, uniform + roster shifts, OSRM times, multi-visit
-  reconnector, per-tour + per-day metrics.
-- Actual tours mode: multi-file upload, "Load saved", date + tour dropdowns,
-  single-tour and All-tours views, unmapped-visit flagging, localStorage
-  persistence + "Clear saved data".
-- Verified against the agency's real `2025-10-10` file: 25 tours, 141 visits.
+4. **Route ordering** (`route.js`) — within a cluster: nearest-neighbour seed
+   then 2-opt to convergence. A 2-opt-optimal Euclidean open path has no
+   self-crossings, so routes look clean.
 
----
+5. **Scheduling & multi-visit reconnector** (`schedule.js`) — `simulateTour`
+   walks the route assigning clock times; a patient's repeat same-day visit
+   becomes its own stop, woven back once the gap (≥3h) has elapsed — a real
+   return leg, its travel counted.
 
-## 9. Known limitations / simplifications
+6. **Travel times** (`osrm.js`) — driving-time matrix from OSRM's Table
+   service, inflated ×(1 + buffer%) for traffic; straight-line fallback
+   (haversine ÷ speed × buffer). Clustering stays straight-line; OSRM only
+   affects scheduling and metrics.
 
-- Planner geocoding uses Nominatim at ~1 request/second (rate-limited); large
-  uploads without lat/lng are slow. Results are cached.
-- OSRM public server is rate-limited; heavy weekly runs may fall back to
-  straight-line for some tours (flagged in the panel).
-- The planner's built-in sample is single-visit; multi-visit works on uploaded
-  CSVs and via the reconnector engine.
-- Persistence is browser-local (not a file or server) — it lives in whatever
-  browser/profile you use.
-- The actual-tours visualiser is read-only — it displays recorded tours, it does
-  not re-optimise them.
+7. **Weekly day-distribution** (`days.js`) — greedy longest-processing-time
+   (LPT) bin-packing: most-constrained patients first, each to the lightest
+   days, balancing daily workload.
 
----
+8. **Roster bin-packing** (`pipeline.js`) — a roster of shifts (each a
+   capacity); clusters with heterogeneous caps; heaviest zone matched to
+   longest shift (sorted-to-sorted, feasibility-preserving).
 
-## 10. Changelog
+9. **Re-assembly** (`reassemble.js`) — actual visits split into morning/evening
+   pools (shift-start vs an AM/PM cutoff), each pool → planner-patients →
+   roster per staffing mode → full planner run. Pools never mix.
 
-Append a new entry whenever you change the app, then commit.
-
-- **v0.1** — MVP planner: patient CSV upload, balanced k-means clustering, 2-opt
-  routing, Leaflet map, daily/weekly modes.
-- **v0.2** — Clustering quality: regret-based assignment + capacity-aware
-  local-search refine; lighter sample data.
-- **v0.3** — OSRM road travel times (×traffic buffer), multi-visit 3h-gap
-  reconnector, per-tour utilisation, per-day efficiency panel.
-- **v0.4** — Roster mode: heterogeneous shift capacities, per-shift start times,
-  biggest-zone-to-longest-shift matching; Uniform/Roster toggle.
-- **v0.5** — Actual-tours visualiser: new "Actual tours" mode, multi-file
-  upload, date + tour dropdowns, "All tours" view, straight-line routes,
-  unmapped-visit flag.
-- **v0.6** — localStorage persistence for actual tours, bundled
-  `public/sample-tours.csv` + "Load saved" button, "Clear saved data".
-- **v0.7** — Actual-tours All-tours view: per-tour visibility checkboxes
-  (toggle a tour on/off the map), legend split into Morning / Evening groups
-  by a configurable shift-start cutoff.
-- **v0.8** — Actual-tours efficiency: per-tour road travel via OSRM ×1.5
-  (traffic), Morning/Evening aggregate efficiency = service ÷ (service +
-  travel), collapsible per-tour efficiency table, shift-length distribution
-  table (shift hours rounded up to the next whole hour; efficiency itself
-  is never rounded). Computed travel is cached in localStorage.
-- **v0.9** — Actual-tours: select-all / unselect-all master checkbox in each
-  of the Morning and Evening group headers (with an indeterminate state when
-  a group is partially selected).
-- **v0.10** — Shift-length distribution made interactive: each shift-length
-  row lists its tours as colour-dotted ID checkboxes (default all on) with a
-  "Select all" master; toggling them shows/hides routes on the map. Shares
-  visibility state with the Morning/Evening checkboxes.
-- **v0.11** — Actual-tours efficiency now shows **two** definitions side by
-  side: **OSRM** = service ÷ (service + OSRM travel ×1.5), and **Actual** =
-  service ÷ (service + recorded travel + recorded waiting), taken from the
-  file's actual visit timeline (so it counts real gap/idle time). The
-  Morning/Evening summary table has an OSRM column and an Actual column; the
-  per-tour table has an OSRM/Actual toggle.
-- **v0.12** — "Re-assemble into circular tours": in Actual-tours mode, re-plan
-  the selected day's actual visits through the planner into clean circular
-  tours (`lib/reassemble.js`). Morning and evening pools planned separately
-  and never mixed; a patient with visits in both periods is kept split;
-  repeat visits in a period stay with one nurse ≥ the gap apart; start times
-  not pinned. Three staffing modes: same nurses/shifts as the file, uniform
-  shifts, or fewest nurses. The result is drawn on a **second map stacked
-  below** the actual one for side-by-side comparison.
+10. **Efficiency** — OSRM efficiency = service ÷ (service + OSRM travel ×1.5);
+    Actual efficiency = service ÷ (service + recorded travel + recorded
+    waiting). No rounding in the maths.
 
 ---
 
-## 11. Backlog / possible next steps
+## 8. Key design decisions (and why)
 
-- Planner: actual-vs-planned comparison (overlay a plan on the recorded tours).
-- Roster: a "use fewest nurses" option (currently spreads across all).
-- Visualiser: per-visit detail list / printable tour sheet.
-- Switch geocoding/routing to a self-hosted or keyed provider for scale.
-- Optional backend so plans/rosters persist server-side and are shareable.
+- **Cluster-first, route-second** — a global VRP optimiser produces messy,
+  interleaved territories; the agency wants visually clean circular tours, so
+  clustering defines territories first, then each is routed.
+- **Projection by cos(latitude)** so circles are true circles.
+- **2-opt routing** → non-self-crossing routes.
+- **OSRM road times ×(1+buffer%)**; clustering stays straight-line (road-time
+  clustering would distort circle shapes).
+- **Multi-visit reconnector** — repeat visits are real return legs, ≥3h apart,
+  same nurse.
+- **Roster** uses heterogeneous capacities; biggest zone → longest shift.
+- **Two efficiency definitions** kept side by side — OSRM (theoretical) and
+  Actual (from recorded times, counts real waiting).
+- **Cap slack + tight circle radius** — perfectly circular, non-overlapping,
+  capacity-respecting territories are mathematically impossible for real point
+  clouds; the realistic target is "compact and roughly round," so the
+  clustering is given slack and circles are drawn at a tight percentile.
+- **localStorage persistence** so a working dataset survives reloads.
 
 ---
 
-## 12. For a new chat picking this up
+## 9. Current status
+
+Both modes fully working and verified against the agency's real Berlin data
+(3 days, ~390 visits, 25 tours/day). Re-assembly runs all 3 staffing modes and
+shows 4 stacked maps + a comparison table.
+
+## 10. Known limitations
+
+- Nominatim geocoding is rate-limited (~1 req/sec) — large un-geocoded uploads
+  are slow.
+- OSRM public server is rate-limited; heavy runs may fall back to straight-line
+  (flagged). Running all 3 re-assembly modes takes ~1 minute.
+- Re-assembly uses each patient's *average* visit duration (total load exact).
+- Persistence is browser-local (not a server).
+
+---
+
+## 11. Changelog
+
+Append an entry whenever you change the app, then commit.
+
+- **v0.1** — MVP planner: CSV upload, balanced k-means, 2-opt routing, Leaflet
+  map, daily/weekly modes.
+- **v0.2** — Clustering quality: regret assignment + capacity-aware refine.
+- **v0.3** — OSRM travel times, multi-visit 3h-gap reconnector, per-tour
+  utilisation, per-day efficiency panel.
+- **v0.4** — Roster mode: heterogeneous shift capacities, per-shift starts.
+- **v0.5** — Actual-tours visualiser: new mode, multi-file upload, date + tour
+  dropdowns, All-tours view, straight-line routes, unmapped-visit flag.
+- **v0.6** — localStorage persistence, bundled `sample-tours.csv` + "Load
+  saved", "Clear saved data".
+- **v0.7** — Per-tour visibility checkboxes; Morning/Evening grouping by a
+  configurable cutoff.
+- **v0.8** — Actual-tours efficiency: per-tour OSRM travel ×1.5, aggregate
+  efficiency, collapsible per-tour table, shift-length distribution.
+- **v0.9** — Select-all / unselect-all master checkbox per group.
+- **v0.10** — Interactive shift-length distribution (tour-ID chips).
+- **v0.11** — Two efficiency definitions side by side (OSRM + Actual) with a
+  per-tour toggle.
+- **v0.12** — "Re-assemble into circular tours": re-plan actual visits via the
+  planner; morning/evening pools; 3 staffing modes; second comparison map.
+- **v0.13** — Re-assembly runs all 3 modes together with an Actual-vs-3-modes
+  comparison table (Morning/Evening/Both selector); compactness cap-slack +
+  tighter circle rendering; Morning/Evening visibility governs every map;
+  full-height, scrollable map stack (wheel scrolls instead of zooming when
+  comparing).
+
+---
+
+## 12. Backlog / possible next steps
+
+- Actual-vs-planned overlay on one map.
+- Even-spacing for multi-day patients in weekly mode.
+- Self-hosted / keyed geocoding + routing for scale.
+- Optional backend so plans persist server-side and are shareable.
+- Per-visit (not averaged) service durations in re-assembly.
+
+---
+
+## 13. For a new contributor / context window
 
 1. Read this file top to bottom.
 2. `cd touring-app && npm install && npm run dev`.
-3. All state lives in `src/App.jsx`; the two panels and `MapView` are
-   presentational. Algorithms are in `src/lib/`.
-4. When you make a change, add a Changelog entry (section 10) and commit.
+3. All state lives in `src/App.jsx`; panels and `MapView` are presentational;
+   algorithms are in `src/lib/`.
+4. When you change the app, add a Changelog entry (section 11) and commit.

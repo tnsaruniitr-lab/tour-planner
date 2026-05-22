@@ -24,7 +24,7 @@ import {
   saveTourTravel,
   clearTourStore,
 } from './lib/tourStore';
-import { reassembleDay } from './lib/reassemble';
+import { reassembleAll } from './lib/reassemble';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -83,7 +83,6 @@ export default function App() {
   const [amPmCutoff, setAmPmCutoff] = useState('12:00');
   const [tourTravel, setTourTravel] = useState(loadTourTravel);
   const [effComputing, setEffComputing] = useState(false);
-  const [staffMode, setStaffMode] = useState('file');
   const [reForm, setReForm] = useState({
     gapHours: 3,
     mHours: 6,
@@ -124,6 +123,27 @@ export default function App() {
   useEffect(() => {
     saveSelection({ date: selectedDate, tourKey: selectedTourKey });
   }, [selectedDate, selectedTourKey]);
+
+  // The Morning/Evening checkboxes also govern the re-assembled maps: if a
+  // whole period is unchecked, that period's re-assembled tours are hidden too.
+  const reCutoff = hhmmToMin(amPmCutoff);
+  const reMorningKeys = toursForDate
+    .filter((t) => hhmmToMin(t.shiftStart) < reCutoff)
+    .map((t) => t.key);
+  const reEveningKeys = toursForDate
+    .filter((t) => hhmmToMin(t.shiftStart) >= reCutoff)
+    .map((t) => t.key);
+  const morningHidden =
+    reMorningKeys.length > 0 && reMorningKeys.every((k) => hiddenTours[k]);
+  const eveningHidden =
+    reEveningKeys.length > 0 && reEveningKeys.every((k) => hiddenTours[k]);
+  const reClusters = (modeResult) =>
+    modeResult
+      ? modeResult.clusters.filter((c) =>
+          c.period === 'morning' ? !morningHidden : !eveningHidden
+        )
+      : [];
+  const multiMap = appMode === 'actual' && !!reassembled;
 
   // ---- Planner handlers ----
   function onField(name, value) {
@@ -306,9 +326,8 @@ export default function App() {
   async function onReassemble() {
     setReassembling(true);
     try {
-      const result = await reassembleDay(toursForDate, {
+      const result = await reassembleAll(toursForDate, {
         cutoffMin: hhmmToMin(amPmCutoff),
-        mode: staffMode,
         gapMin: Math.round((parseFloat(reForm.gapHours) || 3) * 60),
         mHours: parseFloat(reForm.mHours) || 6,
         mCount: parseInt(reForm.mCount, 10) || 1,
@@ -432,8 +451,6 @@ export default function App() {
             tourTravel={tourTravel}
             onComputeEfficiency={onComputeEfficiency}
             effComputing={effComputing}
-            staffMode={staffMode}
-            onStaffMode={setStaffMode}
             reForm={reForm}
             onReField={onReField}
             onReassemble={onReassemble}
@@ -470,6 +487,7 @@ export default function App() {
           <MapView
             dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
             showZones={appMode === 'plan'}
+            scrollZoom={!multiMap}
           />
           {appMode === 'plan' && !plan && (
             <div className="map-empty">
@@ -481,13 +499,32 @@ export default function App() {
           )}
         </div>
         {appMode === 'actual' && reassembled && (
-          <div className="map-pane">
-            <div className="map-label">Re-assembled — circular tours</div>
-            <MapView
-              dayPlan={{ clusters: reassembled.clusters }}
-              showZones={true}
-            />
-          </div>
+          <>
+            <div className="map-pane">
+              <div className="map-label">Re-assembled — same as file</div>
+              <MapView
+                dayPlan={{ clusters: reClusters(reassembled.file) }}
+                showZones={true}
+                scrollZoom={false}
+              />
+            </div>
+            <div className="map-pane">
+              <div className="map-label">Re-assembled — uniform shifts</div>
+              <MapView
+                dayPlan={{ clusters: reClusters(reassembled.uniform) }}
+                showZones={true}
+                scrollZoom={false}
+              />
+            </div>
+            <div className="map-pane">
+              <div className="map-label">Re-assembled — fewest nurses</div>
+              <MapView
+                dayPlan={{ clusters: reClusters(reassembled.fewest) }}
+                showZones={true}
+                scrollZoom={false}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

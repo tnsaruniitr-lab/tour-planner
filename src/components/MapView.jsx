@@ -40,11 +40,16 @@ function FitBounds({ clusters }) {
   return null;
 }
 
-export default function MapView({ dayPlan, showZones = true }) {
+export default function MapView({ dayPlan, showZones = true, scrollZoom = true }) {
   const clusters = dayPlan?.clusters || [];
 
   return (
-    <MapContainer center={LONDON} zoom={12} className="leaflet-container">
+    <MapContainer
+      center={LONDON}
+      zoom={12}
+      scrollWheelZoom={scrollZoom}
+      className="leaflet-container"
+    >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
         attribution='&copy; OpenStreetMap contributors &copy; CARTO'
@@ -60,10 +65,10 @@ export default function MapView({ dayPlan, showZones = true }) {
             radius={c.radiusKm * 1000}
             pathOptions={{
               color: c.color,
-              weight: 1.5,
-              opacity: 0.55,
+              weight: 1.2,
+              opacity: 0.5,
               fillColor: c.color,
-              fillOpacity: 0.12,
+              fillOpacity: 0.09,
             }}
           />
         ))}
