@@ -98,10 +98,10 @@ cluster → route → schedule → render.
   "Clear saved" forgets it.
 
 - **Capacity modes:**
-  - *Auto* — you give only a max shift length + target utilisation; the tool
-    decides how many nurses each day needs and how long each shift runs,
-    then trims every tour's shift to the work it actually carries. Outputs a
-    realistic, varied roster per day. This is the default.
+  - *Auto* — you give only a max shift length; the tool uses the fewest
+    nurses that fit and sizes each shift to exactly its tour's working span
+    (care + travel, no idle buffer). Outputs a realistic, varied roster per
+    day. This is the default.
   - *Uniform* — one shift window + a fixed nurse count.
   - *Roster* — a table of `nurses × hours × start time`; tours sized to each
     shift.
@@ -214,14 +214,14 @@ tour totals.
    longest shift (sorted-to-sorted, feasibility-preserving).
 
 8a. **Auto roster** (`pipeline.js`, `autoShifts` + `fitShiftToCluster`) —
-   when no roster is given, the planner derives one per day. *Step 1:* nurse
-   count `n = ceil(totalServiceLoad / (maxShift × util × SERVICE_SHARE))` —
-   sized so realised utilisation lands near the target rather than
-   overflowing (working time = service ÷ SERVICE_SHARE). *Step 2:* cluster
-   into `n` zones, then trim each tour's shift to its own workload
-   (`workingMin ÷ util`, floored at 3h, capped at the max). The result is a
-   realistic, varied roster — full shifts for dense zones, short ones for
-   sparse pockets.
+   when no roster is given, the planner derives one per day. *Step 1:* the
+   fewest nurses that fit — `n = ceil(totalServiceLoad / (maxShift ×
+   SERVICE_SHARE))` (a shift's service capacity is its length less the
+   travel reserve). *Step 2:* cluster into `n` zones, then set each tour's
+   shift to its own working span — care + travel, plus any unavoidable wait
+   between a patient's repeat visits — floored at 3h, capped at the max.
+   No idle buffer is added, so a tour that needs more than the max shift is
+   flagged rather than padded.
 
 9. **Re-assembly** (`reassemble.js`) — actual visits split into morning/evening
    pools (shift-start vs an AM/PM cutoff), each pool → planner-patients →
@@ -246,10 +246,11 @@ tour totals.
   same nurse.
 - **Roster** uses heterogeneous capacities; biggest zone → longest shift.
 - **Auto mode** answers "what would it take?" — the agency need not know its
-  staffing in advance. The nurse count is derived from the workload and a
-  target utilisation, and each shift is trimmed to its tour afterwards, so the
-  output roster is believable (varied shift lengths) rather than `n` identical
-  full shifts.
+  staffing in advance. It uses the fewest nurses that fit and sizes each
+  shift to exactly its tour's care + travel time (no idle buffer), so the
+  output roster is believable (varied shift lengths) rather than `n`
+  identical full shifts. Day efficiency therefore reports only care, travel
+  and working time — there is no paid-vs-working gap to show.
 - **Two efficiency definitions** kept side by side — OSRM (theoretical) and
   Actual (from recorded times, counts real waiting).
 - **Cap slack + tight circle radius** — perfectly circular, non-overlapping,
@@ -322,6 +323,11 @@ Append an entry whenever you change the app, then commit.
   (`public/sample-patients.csv`, 82 patients ≈ 605 visits/week, replacing the
   small hard-coded London set). "Load sample" loads it and the app opens with
   it on a first visit, so the full dataset is always available.
+- **v0.18** — Auto mode no longer adds an idle buffer: it uses the fewest
+  nurses that fit and sizes each shift to its tour's care + travel span. The
+  "Target utilisation" input is gone; the Day efficiency panel drops "Paid
+  hours" and "Utilisation" (there is no paid-vs-working gap) and the per-tour
+  legend drops its utilisation %.
 
 ---
 

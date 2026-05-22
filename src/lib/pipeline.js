@@ -20,20 +20,18 @@ function fmtHours(h) {
 }
 
 // Auto mode, step 1: how many nurses does this day need?
-// `load` is service time only; working time also includes travel, so a
-// shift's usable *service* capacity at the target utilisation is its
-// length × util × SERVICE_SHARE. The nurse count is sized against that, so
-// realised utilisation lands near the target rather than overflowing.
+// The fewest whose shifts can hold the day's service load — a shift's
+// usable *service* capacity is its length × SERVICE_SHARE (the rest is
+// reserved for travel). No buffer beyond that.
 function autoShifts(withLoad, settings) {
   const totalLoad = withLoad.reduce((s, p) => s + p.load, 0);
   if (totalLoad <= 0) return [];
 
   const maxLen = settings.maxShiftMin;
-  const serviceShare = settings.targetUtil * SERVICE_SHARE;
-  const n = Math.max(1, Math.ceil(totalLoad / (maxLen * serviceShare)));
+  const n = Math.max(1, Math.ceil(totalLoad / (maxLen * SERVICE_SHARE)));
 
   // Provisional full-length shifts — each tour's shift is trimmed to its
-  // own workload afterwards (fitShiftToCluster).
+  // own working span afterwards (fitShiftToCluster).
   return Array.from({ length: n }, () => ({
     startMin: settings.startMin,
     lengthMin: maxLen,
@@ -41,15 +39,17 @@ function autoShifts(withLoad, settings) {
   }));
 }
 
-// Auto mode, step 2: once a tour is built, trim its shift to its own
-// workload — a tour with little work gets a short shift, a full tour the
-// max. This is what makes the auto roster a realistic, varied set of
-// shift lengths rather than n identical ones.
+// Auto mode, step 2: once a tour is built, set its shift to exactly the
+// nurse's working span — care + travel (plus any unavoidable wait between
+// one patient's repeat visits). No idle buffer is added.
 function fitShiftToCluster(cluster, settings) {
-  const fitted = Math.round(cluster.workingMin / settings.targetUtil);
+  const stops = cluster.stops;
+  const span = stops.length
+    ? stops[stops.length - 1].depart - cluster.shiftStartMin
+    : cluster.workingMin;
   const lengthMin = Math.min(
     settings.maxShiftMin,
-    Math.max(MIN_SHIFT_MIN, fitted)
+    Math.max(MIN_SHIFT_MIN, Math.round(span))
   );
   return {
     ...cluster,

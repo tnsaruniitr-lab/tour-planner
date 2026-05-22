@@ -143,29 +143,16 @@ export default function ControlPanel({
         </div>
 
         {capacityMode === 'auto' ? (
-          <>
-            <div className="row" style={{ marginTop: 10 }}>
-              <div className="field">
-                <label>Max shift length (h)</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  value={form.maxShiftHours}
-                  onChange={(e) => onField('maxShiftHours', e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label>Target utilisation (%)</label>
-                <input
-                  type="number"
-                  min="40"
-                  max="95"
-                  step="5"
-                  value={form.targetUtil}
-                  onChange={(e) => onField('targetUtil', e.target.value)}
-                />
-              </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <div className="field">
+              <label>Max shift length (h)</label>
+              <input
+                type="number"
+                min="1"
+                step="0.5"
+                value={form.maxShiftHours}
+                onChange={(e) => onField('maxShiftHours', e.target.value)}
+              />
             </div>
             <div className="field">
               <label>Shift start</label>
@@ -175,7 +162,7 @@ export default function ControlPanel({
                 onChange={(e) => onField('shiftStart', e.target.value)}
               />
             </div>
-          </>
+          </div>
         ) : capacityMode === 'uniform' ? (
           <>
             <div className="row" style={{ marginTop: 10 }}>
@@ -273,7 +260,7 @@ export default function ControlPanel({
         </div>
         <p className="note">
           {capacityMode === 'auto'
-            ? 'The tool picks how many nurses each day and how long each shift runs, to cover every visit at the target utilisation.'
+            ? 'The tool uses the fewest nurses that fit, and sizes each shift to its tour’s care + travel time — no idle buffer.'
             : 'Tours are sized to fit each shift; work is spread across every rostered nurse.'}
         </p>
       </div>
@@ -319,8 +306,7 @@ export default function ControlPanel({
                 <div className="legend-item" key={c.id}>
                   <span className="swatch" style={{ background: c.color }} />
                   <span>
-                    Tour {i + 1} · {c.shiftLabel} — {c.stops.length} stops ·{' '}
-                    {pct(c.utilisation)}
+                    Tour {i + 1} · {c.shiftLabel} — {c.stops.length} stops
                   </span>
                 </div>
               ))}
@@ -414,16 +400,8 @@ export default function ControlPanel({
               <b>{fmtDuration(metrics.travelMin)}</b>
             </div>
             <div className="metric">
-              <span>Paid hours</span>
-              <b>{fmtDuration(metrics.paidMin)}</b>
-            </div>
-            <div className="metric">
               <span>Working time</span>
               <b>{fmtDuration(metrics.workingMin)}</b>
-            </div>
-            <div className="metric">
-              <span>Utilisation</span>
-              <b>{pct(metrics.utilisation)}</b>
             </div>
             <div className="metric">
               <span>Care efficiency</span>

@@ -36,7 +36,6 @@ const DEFAULT_FORM = {
   shiftEnd: '14:00',
   nurses: 4,
   maxShiftHours: 8,
-  targetUtil: 85,
   gapHours: 3,
   bufferPct: 35,
 };
@@ -300,10 +299,6 @@ export default function App() {
         }
         settings.auto = true;
         settings.maxShiftMin = maxShiftMin;
-        settings.targetUtil = Math.min(
-          0.95,
-          Math.max(0.4, (parseFloat(form.targetUtil) || 85) / 100)
-        );
         settings.startMin = hhmmToMin(form.shiftStart);
       } else {
         const shifts = buildShifts();
