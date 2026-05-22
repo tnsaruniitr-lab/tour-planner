@@ -1,5 +1,6 @@
 import { ALL_TOURS } from '../lib/actualTours';
 import { clusterColor } from '../lib/colors';
+import { hhmmToMin } from '../lib/schedule';
 
 function fmtDuration(min) {
   if (min == null) return '—';
@@ -24,8 +25,36 @@ export default function ActualToursPanel({
   onSelectTour,
   selectedTour,
   isAllView,
+  hiddenTours,
+  onToggleTour,
+  amPmCutoff,
+  onCutoffChange,
 }) {
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
+
+  // Classify each tour Morning/Evening by shift start vs. the cutoff.
+  const cutoff = hhmmToMin(amPmCutoff);
+  const decorated = toursForDate.map((t, i) => ({
+    t,
+    i,
+    evening: hhmmToMin(t.shiftStart) >= cutoff,
+  }));
+  const morning = decorated.filter((d) => !d.evening);
+  const evening = decorated.filter((d) => d.evening);
+
+  const renderRow = ({ t, i }) => (
+    <label className="legend-item" key={t.key}>
+      <input
+        type="checkbox"
+        checked={!hiddenTours[t.key]}
+        onChange={() => onToggleTour(t.key)}
+      />
+      <span className="swatch" style={{ background: clusterColor(i) }} />
+      <span>
+        {t.shortId} · {t.nurseName} ({t.visits.length})
+      </span>
+    </label>
+  );
 
   return (
     <>
@@ -116,16 +145,20 @@ export default function ActualToursPanel({
               <b>{totalVisits}</b>
             </div>
           </div>
-          <div className="legend">
-            {toursForDate.map((t, i) => (
-              <div className="legend-item" key={t.key}>
-                <span className="swatch" style={{ background: clusterColor(i) }} />
-                <span>
-                  {t.shortId} · {t.nurseName} ({t.visits.length})
-                </span>
-              </div>
-            ))}
+          <div className="field">
+            <label>Morning / evening split at</label>
+            <input
+              type="time"
+              value={amPmCutoff}
+              onChange={(e) => onCutoffChange(e.target.value)}
+            />
           </div>
+
+          <div className="tour-group-title">Morning ({morning.length})</div>
+          <div className="legend">{morning.map(renderRow)}</div>
+
+          <div className="tour-group-title">Evening ({evening.length})</div>
+          <div className="legend">{evening.map(renderRow)}</div>
         </div>
       )}
 

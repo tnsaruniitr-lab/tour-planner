@@ -75,6 +75,8 @@ export default function App() {
       : ''
   );
   const [toursErr, setToursErr] = useState(false);
+  const [hiddenTours, setHiddenTours] = useState({});
+  const [amPmCutoff, setAmPmCutoff] = useState('12:00');
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -93,7 +95,12 @@ export default function App() {
   const selectKey = allView ? ALL_TOURS : selectedTourKey;
   const tourDayPlan = allView
     ? toursForDate.length
-      ? { clusters: toursForDate.map((t, i) => tourToCluster(t, i)) }
+      ? {
+          clusters: toursForDate
+            .map((t, i) => ({ t, i }))
+            .filter(({ t }) => !hiddenTours[t.key])
+            .map(({ t, i }) => tourToCluster(t, i)),
+        }
       : null
     : { clusters: [tourToCluster(selectedTour, 0)] };
 
@@ -281,6 +288,11 @@ export default function App() {
     setSelectedTourKey(ALL_TOURS);
     setToursStatus('');
     setToursErr(false);
+    setHiddenTours({});
+  }
+
+  function onToggleTour(key) {
+    setHiddenTours((h) => ({ ...h, [key]: !h[key] }));
   }
 
   return (
@@ -339,6 +351,10 @@ export default function App() {
             onSelectTour={setSelectedTourKey}
             selectedTour={selectedTour}
             isAllView={allView}
+            hiddenTours={hiddenTours}
+            onToggleTour={onToggleTour}
+            amPmCutoff={amPmCutoff}
+            onCutoffChange={setAmPmCutoff}
           />
         )}
       </div>

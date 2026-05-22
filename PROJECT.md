@@ -202,6 +202,9 @@ Append a new entry whenever you change the app, then commit.
   unmapped-visit flag.
 - **v0.6** — localStorage persistence for actual tours, bundled
   `public/sample-tours.csv` + "Load saved" button, "Clear saved data".
+- **v0.7** — Actual-tours All-tours view: per-tour visibility checkboxes
+  (toggle a tour on/off the map), legend split into Morning / Evening groups
+  by a configurable shift-start cutoff.
 
 ---
 
