@@ -6,6 +6,20 @@ function fmtDuration(min) {
   return `${m}m`;
 }
 
+// "11×8h, 2×7.5h, 2×3h" — a high-level roster: tours grouped into
+// half-hour shift-length buckets, longest first.
+function rosterSummary(clusters) {
+  const byBucket = {};
+  for (const c of clusters) {
+    const hrs = Math.round(c.shiftLengthMin / 30) / 2; // nearest 0.5h
+    byBucket[hrs] = (byBucket[hrs] || 0) + 1;
+  }
+  return Object.entries(byBucket)
+    .sort((a, b) => Number(b[0]) - Number(a[0]))
+    .map(([hrs, n]) => `${n}×${Number(hrs)}h`)
+    .join(', ');
+}
+
 const pct = (x) => Math.round(x * 100) + '%';
 
 export default function ControlPanel({
@@ -92,6 +106,12 @@ export default function ControlPanel({
         <div className="section-title">Nurse shifts</div>
         <div className="mode-toggle">
           <button
+            className={capacityMode === 'auto' ? 'active' : ''}
+            onClick={() => onCapacityModeChange('auto')}
+          >
+            Auto
+          </button>
+          <button
             className={capacityMode === 'uniform' ? 'active' : ''}
             onClick={() => onCapacityModeChange('uniform')}
           >
@@ -105,7 +125,41 @@ export default function ControlPanel({
           </button>
         </div>
 
-        {capacityMode === 'uniform' ? (
+        {capacityMode === 'auto' ? (
+          <>
+            <div className="row" style={{ marginTop: 10 }}>
+              <div className="field">
+                <label>Max shift length (h)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  value={form.maxShiftHours}
+                  onChange={(e) => onField('maxShiftHours', e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Target utilisation (%)</label>
+                <input
+                  type="number"
+                  min="40"
+                  max="95"
+                  step="5"
+                  value={form.targetUtil}
+                  onChange={(e) => onField('targetUtil', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>Shift start</label>
+              <input
+                type="time"
+                value={form.shiftStart}
+                onChange={(e) => onField('shiftStart', e.target.value)}
+              />
+            </div>
+          </>
+        ) : capacityMode === 'uniform' ? (
           <>
             <div className="row" style={{ marginTop: 10 }}>
               <div className="field">
@@ -201,8 +255,9 @@ export default function ControlPanel({
           </div>
         </div>
         <p className="note">
-          Tours are sized to fit each shift; work is spread across every
-          rostered nurse.
+          {capacityMode === 'auto'
+            ? 'The tool picks how many nurses each day and how long each shift runs, to cover every visit at the target utilisation.'
+            : 'Tours are sized to fit each shift; work is spread across every rostered nurse.'}
         </p>
       </div>
 
@@ -233,6 +288,12 @@ export default function ControlPanel({
               <span>Patients placed</span>
               <b>{placed}</b>
             </div>
+            {clusters.length > 0 && (
+              <div className="stat">
+                <span>Shift plan</span>
+                <b>{rosterSummary(clusters)}</b>
+              </div>
+            )}
           </div>
 
           {clusters.length > 0 && (
@@ -277,6 +338,39 @@ export default function ControlPanel({
               {infeasible.length} patient(s) need more days than the week has.
             </div>
           )}
+        </div>
+      )}
+
+      {plan && plan.mode === 'weekly' && (
+        <div className="section">
+          <div className="section-title">Week shift plan</div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Nurses</th>
+                <th>Shifts</th>
+                <th>Visits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.dayOrder.map((d) => {
+                const cs = plan.days[d]?.clusters || [];
+                const visits = cs.reduce((s, c) => s + c.stops.length, 0);
+                return (
+                  <tr key={d}>
+                    <td>{d}</td>
+                    <td>{cs.length}</td>
+                    <td>{rosterSummary(cs) || '—'}</td>
+                    <td>{visits}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="note">
+            Nurses and shift lengths the tool derived to cover each day.
+          </p>
         </div>
       )}
 

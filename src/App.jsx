@@ -30,6 +30,8 @@ const DEFAULT_FORM = {
   shiftStart: '08:00',
   shiftEnd: '14:00',
   nurses: 4,
+  maxShiftHours: 8,
+  targetUtil: 85,
   gapHours: 3,
   bufferPct: 35,
 };
@@ -56,7 +58,7 @@ export default function App() {
   const [patients, setPatients] = useState([]);
   const [sourceLabel, setSourceLabel] = useState('');
   const [mode, setMode] = useState('daily');
-  const [capacityMode, setCapacityMode] = useState('uniform');
+  const [capacityMode, setCapacityMode] = useState('auto');
   const [form, setForm] = useState(DEFAULT_FORM);
   const [roster, setRoster] = useState(DEFAULT_ROSTER);
   const [running, setRunning] = useState(false);
@@ -224,10 +226,31 @@ export default function App() {
     setStatusErr(false);
     setPlan(null);
     try {
-      const shifts = buildShifts();
-      if (!shifts.length) throw new Error('Add at least one shift.');
-      if (shifts.some((s) => s.lengthMin <= 0)) {
-        throw new Error('Every shift must have a positive length.');
+      const settings = {
+        gapMin: Math.round((parseFloat(form.gapHours) || 0) * 60),
+        bufferPct: Math.max(0, parseFloat(form.bufferPct) || 0),
+        speedKmh: 30,
+      };
+
+      if (capacityMode === 'auto') {
+        const maxShiftMin = Math.round((parseFloat(form.maxShiftHours) || 0) * 60);
+        if (maxShiftMin <= 0) {
+          throw new Error('Max shift length must be a positive number.');
+        }
+        settings.auto = true;
+        settings.maxShiftMin = maxShiftMin;
+        settings.targetUtil = Math.min(
+          0.95,
+          Math.max(0.4, (parseFloat(form.targetUtil) || 85) / 100)
+        );
+        settings.startMin = hhmmToMin(form.shiftStart);
+      } else {
+        const shifts = buildShifts();
+        if (!shifts.length) throw new Error('Add at least one shift.');
+        if (shifts.some((s) => s.lengthMin <= 0)) {
+          throw new Error('Every shift must have a positive length.');
+        }
+        settings.shifts = shifts;
       }
 
       setStatusMsg('Geocoding addresses…');
@@ -235,13 +258,6 @@ export default function App() {
         if (total) setStatusMsg(`Geocoding addresses… ${done}/${total}`);
       });
       if (!located.length) throw new Error('No addresses could be geocoded.');
-
-      const settings = {
-        shifts,
-        gapMin: Math.round((parseFloat(form.gapHours) || 0) * 60),
-        bufferPct: Math.max(0, parseFloat(form.bufferPct) || 0),
-        speedKmh: 30,
-      };
 
       setStatusMsg('Clustering and fetching road travel times…');
       const result = await buildPlan(located, mode, settings);

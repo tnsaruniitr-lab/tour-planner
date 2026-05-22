@@ -3,14 +3,62 @@ import { clusterItems } from './cluster';
 import { routeOrder } from './route';
 import { simulateTour } from './schedule';
 import { fetchTravelMatrix, straightLineMatrix } from './osrm';
-import { distributeByDay, WEEKDAYS } from './days';
+import { distributeByDay, ALLDAYS } from './days';
 import { clusterColor } from './colors';
 
 // Of a shift's length, the share assumed available for service work — the
 // rest is reserved for travel between stops.
 const SERVICE_SHARE = 0.85;
 
+// Auto mode never proposes a shift shorter than this.
+const MIN_SHIFT_MIN = 180;
+
 const REVISIT_OFFSET = { lat: 0.00025, lng: 0.00035 };
+
+function fmtHours(h) {
+  return (Number.isInteger(h) ? h : Number(h.toFixed(1))) + 'h';
+}
+
+// Auto mode, step 1: how many nurses does this day need?
+// `load` is service time only; working time also includes travel, so a
+// shift's usable *service* capacity at the target utilisation is its
+// length × util × SERVICE_SHARE. The nurse count is sized against that, so
+// realised utilisation lands near the target rather than overflowing.
+function autoShifts(withLoad, settings) {
+  const totalLoad = withLoad.reduce((s, p) => s + p.load, 0);
+  if (totalLoad <= 0) return [];
+
+  const maxLen = settings.maxShiftMin;
+  const serviceShare = settings.targetUtil * SERVICE_SHARE;
+  const n = Math.max(1, Math.ceil(totalLoad / (maxLen * serviceShare)));
+
+  // Provisional full-length shifts — each tour's shift is trimmed to its
+  // own workload afterwards (fitShiftToCluster).
+  return Array.from({ length: n }, () => ({
+    startMin: settings.startMin,
+    lengthMin: maxLen,
+    label: fmtHours(maxLen / 60),
+  }));
+}
+
+// Auto mode, step 2: once a tour is built, trim its shift to its own
+// workload — a tour with little work gets a short shift, a full tour the
+// max. This is what makes the auto roster a realistic, varied set of
+// shift lengths rather than n identical ones.
+function fitShiftToCluster(cluster, settings) {
+  const fitted = Math.round(cluster.workingMin / settings.targetUtil);
+  const lengthMin = Math.min(
+    settings.maxShiftMin,
+    Math.max(MIN_SHIFT_MIN, fitted)
+  );
+  return {
+    ...cluster,
+    shiftLabel: fmtHours(lengthMin / 60),
+    shiftLengthMin: lengthMin,
+    idleMin: Math.max(0, lengthMin - cluster.workingMin),
+    utilisation: lengthMin > 0 ? cluster.workingMin / lengthMin : 0,
+  };
+}
 
 function offsetFor(patient, visitNum) {
   const k = visitNum - 1;
@@ -97,11 +145,17 @@ function dayMetrics(clusters) {
 }
 
 async function planDay(patients, settings) {
-  const shifts = settings.shifts;
   const withLoad = patients.map((p) => ({
     ...p,
     load: p.visitsPerDay * p.serviceTime,
   }));
+
+  // Auto mode sizes the day's roster from its own workload; otherwise the
+  // roster is the fixed set of shifts the user supplied.
+  const shifts = settings.auto ? autoShifts(withLoad, settings) : settings.shifts;
+  if (!shifts || !shifts.length) {
+    return { clusters: [], unassigned: [], metrics: null, shortfallMin: 0 };
+  }
 
   // A patient whose own daily work exceeds the longest shift can't fit.
   const hardCap = Math.max(...shifts.map((s) => s.lengthMin));
@@ -129,7 +183,7 @@ async function planDay(patients, settings) {
     .filter((c) => c.idxs.length)
     .sort((a, b) => b.load - a.load);
 
-  const out = await Promise.all(
+  const built = await Promise.all(
     nonEmpty.map((c, ci) =>
       buildCluster(
         c.idxs.map((i) => projected[i]),
@@ -139,6 +193,11 @@ async function planDay(patients, settings) {
       )
     )
   );
+
+  // Auto mode: trim each tour's shift to the work it actually carries.
+  const out = settings.auto
+    ? built.map((c) => fitShiftToCluster(c, settings))
+    : built;
 
   const totalLoad = fits.reduce((s, p) => s + p.load, 0);
   const totalCap = activeShifts.reduce((s, sh) => s + sh.lengthMin * SERVICE_SHARE, 0);
@@ -153,13 +212,21 @@ async function planDay(patients, settings) {
 export async function buildPlan(patients, mode, settings) {
   if (mode === 'weekly') {
     const { byDay, infeasible } = distributeByDay(patients);
+    // Only show days that actually carry visits (Sat/Sun are often light).
+    const dayOrder = ALLDAYS.filter((d) => byDay[d].length);
     const days = {};
-    for (const d of WEEKDAYS) {
-      days[d] = byDay[d].length
-        ? await planDay(byDay[d], settings)
-        : { clusters: [], unassigned: [], metrics: null, shortfallMin: 0 };
+    for (const d of dayOrder) {
+      days[d] = await planDay(byDay[d], settings);
     }
-    return { mode, days, dayOrder: WEEKDAYS, infeasible };
+    if (!dayOrder.length) {
+      days.Mon = { clusters: [], unassigned: [], metrics: null, shortfallMin: 0 };
+    }
+    return {
+      mode,
+      days,
+      dayOrder: dayOrder.length ? dayOrder : ['Mon'],
+      infeasible,
+    };
   }
   return {
     mode,

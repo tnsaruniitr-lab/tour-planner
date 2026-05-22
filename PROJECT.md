@@ -87,13 +87,24 @@ touring-app/
 Flow: upload patients (or "Load sample") → set shifts → **GO** → geocode →
 cluster → route → schedule → render.
 
-- **Capacity modes:** *Uniform* (one shift window + nurse count) or *Roster*
-  (a table of `nurses × hours × start time`; tours sized to each shift).
+- **Capacity modes:**
+  - *Auto* — you give only a max shift length + target utilisation; the tool
+    decides how many nurses each day needs and how long each shift runs,
+    then trims every tour's shift to the work it actually carries. Outputs a
+    realistic, varied roster per day. This is the default.
+  - *Uniform* — one shift window + a fixed nurse count.
+  - *Roster* — a table of `nurses × hours × start time`; tours sized to each
+    shift.
+- **Weekly** runs a 7-day operating week. Day choice is *weekday-preferred*:
+  patients needing ≤5 days/week land on Mon–Fri only; 6-day patients also get
+  Saturday; 7-day patients get the whole week. So Sat/Sun only ever carry the
+  6- and 7-day patients.
 - Clustering groups patients into circular zones capped by shift capacity;
   more clusters are auto-added if a tour would exceed its cap.
 - Multi-visit patients get repeat visits ≥3h apart as real return legs.
 - Metrics: per-tour utilisation; per-day care/travel/working time, utilisation,
-  care efficiency.
+  care efficiency. Weekly mode also shows a **Week shift plan** table
+  (nurses + shift mix + visits per day).
 
 ### Actual tours mode (`ActualToursPanel.jsx`, `actualTours.js`, `reassemble.js`)
 
@@ -177,12 +188,25 @@ tour totals.
    affects scheduling and metrics.
 
 7. **Weekly day-distribution** (`days.js`) — greedy longest-processing-time
-   (LPT) bin-packing: most-constrained patients first, each to the lightest
-   days, balancing daily workload.
+   (LPT) bin-packing over a 7-day operating week: most-constrained patients
+   first, each to its lightest *eligible* days, balancing daily workload.
+   Eligible days are weekday-preferred — a patient is only placed on Saturday
+   if it needs 6 days, on Sunday only if it needs 7 — so weekends carry only
+   the spill-over.
 
 8. **Roster bin-packing** (`pipeline.js`) — a roster of shifts (each a
    capacity); clusters with heterogeneous caps; heaviest zone matched to
    longest shift (sorted-to-sorted, feasibility-preserving).
+
+8a. **Auto roster** (`pipeline.js`, `autoShifts` + `fitShiftToCluster`) —
+   when no roster is given, the planner derives one per day. *Step 1:* nurse
+   count `n = ceil(totalServiceLoad / (maxShift × util × SERVICE_SHARE))` —
+   sized so realised utilisation lands near the target rather than
+   overflowing (working time = service ÷ SERVICE_SHARE). *Step 2:* cluster
+   into `n` zones, then trim each tour's shift to its own workload
+   (`workingMin ÷ util`, floored at 3h, capped at the max). The result is a
+   realistic, varied roster — full shifts for dense zones, short ones for
+   sparse pockets.
 
 9. **Re-assembly** (`reassemble.js`) — actual visits split into morning/evening
    pools (shift-start vs an AM/PM cutoff), each pool → planner-patients →
@@ -206,6 +230,11 @@ tour totals.
 - **Multi-visit reconnector** — repeat visits are real return legs, ≥3h apart,
   same nurse.
 - **Roster** uses heterogeneous capacities; biggest zone → longest shift.
+- **Auto mode** answers "what would it take?" — the agency need not know its
+  staffing in advance. The nurse count is derived from the workload and a
+  target utilisation, and each shift is trimmed to its tour afterwards, so the
+  output roster is believable (varied shift lengths) rather than `n` identical
+  full shifts.
 - **Two efficiency definitions** kept side by side — OSRM (theoretical) and
   Actual (from recorded times, counts real waiting).
 - **Cap slack + tight circle radius** — perfectly circular, non-overlapping,
@@ -262,13 +291,25 @@ Append an entry whenever you change the app, then commit.
   tighter circle rendering; Morning/Evening visibility governs every map;
   full-height, scrollable map stack (wheel scrolls instead of zooming when
   comparing).
+- **v0.14** — Auto-plan capacity mode (now the default): the tool derives the
+  nurse count and a realistic varied roster per day from a max shift length +
+  target utilisation, with each shift trimmed to its tour's workload. Weekly
+  mode extended to a 7-day operating week with weekday-preferred day
+  assignment (Sat/Sun carry only 6- and 7-day patients). New "Week shift plan"
+  table summarising nurses + shift mix + visits per day.
 
 ---
 
 ## 12. Backlog / possible next steps
 
+- Per-day *defined* roster for weekly mode ("Mode B" — the user supplies the
+  shifts for each day and the tool fits patients into them; the current Auto
+  mode is "Mode A").
+- Geography-aware day assignment — pick each patient's days so a weekday's
+  set is geographically compact, not just balanced in hours (would cut
+  travel for datasets with many part-week patients).
+- Even-spacing for multi-day patients in weekly mode (Mon/Wed/Fri).
 - Actual-vs-planned overlay on one map.
-- Even-spacing for multi-day patients in weekly mode.
 - Self-hosted / keyed geocoding + routing for scale.
 - Optional backend so plans persist server-side and are shareable.
 - Per-visit (not averaged) service durations in re-assembly.
