@@ -146,10 +146,12 @@ Flow: **Upload CSV(s)** or **Load saved** → pick date → pick tour → map.
   evening pools are planned separately and never mixed; a patient with
   visits in both periods is kept split; repeat visits in a period stay with
   one nurse ≥ the gap apart; start times are not pinned. Output: a
-  **comparison table** (Actual vs the 2 modes — efficiency, travel %, tours;
-  with a Morning/Evening/Both selector) and **a map per mode stacked below**
-  the actual map. The Morning/Evening checkboxes hide that period on every
-  map.
+  **comparison table** (Actual vs the 2 modes — efficiency, travel %,
+  recorded waiting %, tours; with a Morning/Evening/Both selector) and **a
+  map per mode stacked below** the actual map. The Actual column's
+  efficiency counts the file's recorded waiting time; the re-planned modes
+  carry no waiting. The Morning/Evening checkboxes hide that period on
+  every map.
 
 ---
 
@@ -364,6 +366,10 @@ Append an entry whenever you change the app, then commit.
 - **v0.24** — Re-assembly drops the *uniform* mode (it was rarely optimal):
   comparison table and stacked maps now show Actual + File + Fewest only.
   Added a "Log out" button so the demo login can be exited and re-tested.
+- **v0.25** — The re-assembly comparison table now counts the file's
+  recorded **waiting time**: the Actual column's efficiency is
+  service ÷ (service + travel + waiting), and a new "Waiting" row shows
+  that share. Re-planned modes have no recorded waiting.
 
 ---
 

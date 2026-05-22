@@ -99,11 +99,16 @@ export default function ActualToursPanel({
   );
   const compActSvc = compActTours.reduce((s, t) => s + (t.serviceTimeMin || 0), 0);
   const compActTrv = compActTours.reduce((s, t) => s + (t.travelTimeMin || 0), 0);
-  const compActWork = compActSvc + compActTrv;
-  const compActEff = compActWork > 0 ? compActSvc / compActWork : null;
-  const compActTrvPct = compActWork > 0 ? compActTrv / compActWork : null;
+  // Recorded waiting time from the uploaded data — it is real lost time, so
+  // the actual day's efficiency is measured against it too. A freshly
+  // re-planned tour is scheduled tight and carries no recorded waiting.
+  const compActWait = compActTours.reduce((s, t) => s + (t.waitingTimeMin || 0), 0);
+  const compActTotal = compActSvc + compActTrv + compActWait;
+  const compActEff = compActTotal > 0 ? compActSvc / compActTotal : null;
+  const compActTrvPct = compActTotal > 0 ? compActTrv / compActTotal : null;
+  const compActWaitPct = compActTotal > 0 ? compActWait / compActTotal : null;
   const modeMetrics = (m) => {
-    if (!m) return { eff: null, travelPct: null, tours: 0 };
+    if (!m) return { eff: null, travelPct: null, waitPct: null, tours: 0 };
     const cl = m.clusters.filter((c) => inComp(c.period === 'evening'));
     const svc = cl.reduce((s, c) => s + (c.serviceMin || 0), 0);
     const trv = cl.reduce((s, c) => s + (c.travelMin || 0), 0);
@@ -111,6 +116,7 @@ export default function ActualToursPanel({
     return {
       eff: w > 0 ? svc / w : null,
       travelPct: w > 0 ? trv / w : null,
+      waitPct: null, // re-planned tours have no recorded waiting
       tours: cl.length,
     };
   };
@@ -331,6 +337,12 @@ export default function ActualToursPanel({
                     <td>{pct(modeMetrics(reassembled.fewest).travelPct)}</td>
                   </tr>
                   <tr>
+                    <td>Waiting</td>
+                    <td>{pct(compActWaitPct)}</td>
+                    <td>{pct(modeMetrics(reassembled.file).waitPct)}</td>
+                    <td>{pct(modeMetrics(reassembled.fewest).waitPct)}</td>
+                  </tr>
+                  <tr>
                     <td>Tours</td>
                     <td>{compActTours.length}</td>
                     <td>{modeMetrics(reassembled.file).tours}</td>
@@ -339,8 +351,10 @@ export default function ActualToursPanel({
                 </tbody>
               </table>
               <p className="note">
-                Efficiency = service ÷ (service + travel). Toggle Morning /
-                Evening / Both above. A map for each mode shows below.
+                Actual efficiency = service ÷ (service + travel + recorded
+                waiting from the file); re-planned modes are scheduled tight,
+                so they carry no waiting. Toggle Morning / Evening / Both
+                above. A map for each mode shows below.
               </p>
             </>
           )}
