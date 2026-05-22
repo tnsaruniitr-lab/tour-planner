@@ -3,7 +3,7 @@ import { useState } from 'react';
 // Simple demo gate. NOTE: this is a client-side check — the credentials
 // ship in the JS bundle, so it keeps casual visitors out but is not real
 // security. Fine for a demo; use a real auth backend for anything else.
-const AUTH_USER = 'dostel_test';
+const AUTH_USER = 'dosteli_test';
 const AUTH_PASS = 'dosteli_test';
 
 const STOPS = [
