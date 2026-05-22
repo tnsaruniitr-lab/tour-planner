@@ -29,6 +29,7 @@ export default function ActualToursPanel({
   isAllView,
   hiddenTours,
   onToggleTour,
+  onSetGroupVisible,
   amPmCutoff,
   onCutoffChange,
   tourTravel,
@@ -93,6 +94,28 @@ export default function ActualToursPanel({
       </span>
     </label>
   );
+
+  // Group header with a select-all / unselect-all master checkbox.
+  const groupHeader = (label, list) => {
+    const keys = list.map((d) => d.t.key);
+    const allOn = list.length > 0 && list.every((d) => !hiddenTours[d.t.key]);
+    const anyOn = list.some((d) => !hiddenTours[d.t.key]);
+    return (
+      <label className="tour-group-title group-toggle">
+        <input
+          type="checkbox"
+          ref={(el) => {
+            if (el) el.indeterminate = anyOn && !allOn;
+          }}
+          checked={allOn}
+          onChange={() => onSetGroupVisible(keys, !allOn)}
+        />
+        <span>
+          {label} ({list.length})
+        </span>
+      </label>
+    );
+  };
 
   return (
     <>
@@ -192,10 +215,10 @@ export default function ActualToursPanel({
             />
           </div>
 
-          <div className="tour-group-title">Morning ({morning.length})</div>
+          {groupHeader('Morning', morning)}
           <div className="legend">{morning.map(renderRow)}</div>
 
-          <div className="tour-group-title">Evening ({evening.length})</div>
+          {groupHeader('Evening', evening)}
           <div className="legend">{evening.map(renderRow)}</div>
         </div>
       )}

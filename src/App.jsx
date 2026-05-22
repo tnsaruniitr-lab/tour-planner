@@ -301,6 +301,14 @@ export default function App() {
     setHiddenTours((h) => ({ ...h, [key]: !h[key] }));
   }
 
+  function onSetGroupVisible(keys, visible) {
+    setHiddenTours((h) => {
+      const next = { ...h };
+      for (const k of keys) next[k] = !visible;
+      return next;
+    });
+  }
+
   async function onComputeEfficiency() {
     setEffComputing(true);
     try {
@@ -379,6 +387,7 @@ export default function App() {
             isAllView={allView}
             hiddenTours={hiddenTours}
             onToggleTour={onToggleTour}
+            onSetGroupVisible={onSetGroupVisible}
             amPmCutoff={amPmCutoff}
             onCutoffChange={setAmPmCutoff}
             tourTravel={tourTravel}

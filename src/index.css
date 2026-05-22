@@ -285,6 +285,16 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   color: var(--muted);
   margin: 14px 0 4px;
 }
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.group-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
 
 .data-table {
   width: 100%;

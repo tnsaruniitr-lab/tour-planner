@@ -210,6 +210,9 @@ Append a new entry whenever you change the app, then commit.
   travel), collapsible per-tour efficiency table, shift-length distribution
   table (shift hours rounded up to the next whole hour; efficiency itself
   is never rounded). Computed travel is cached in localStorage.
+- **v0.9** — Actual-tours: select-all / unselect-all master checkbox in each
+  of the Morning and Evening group headers (with an indeterminate state when
+  a group is partially selected).
 
 ---
 
