@@ -32,7 +32,14 @@ npm install
 npm run dev        # → http://localhost:5173
 ```
 
-Node 18+. Build: `npm run build`.
+Node 18+. Build: `npm run build` → static `dist/`.
+
+**Deploy (Railway / any static host).** `railway.json` + the `start` script
+(`serve -s dist`) make this a one-click static deploy: Railway runs
+`npm install` → `npm run build` → `npm start`. The bundled sample CSVs in
+`public/` are part of the build, so the demo's sample data persists with
+**no database**. A visitor's own uploads are kept per-browser in
+localStorage.
 
 ---
 
@@ -52,7 +59,7 @@ Node 18+. Build: `npm run build`.
 
 ```
 touring-app/
-  index.html, vite.config.js, package.json
+  index.html, vite.config.js, package.json, railway.json
   public/
     sample-tours.csv           bundled actual-tour data (3 days, ~390 visits)
     sample-patients.csv        bundled planner dataset (82 patients, ~605 visits/wk)
@@ -337,6 +344,10 @@ Append an entry whenever you change the app, then commit.
   zones. New per-day **Adjust shifts** table: edit the roster's hours×count,
   watch a net-change meter, and "Replan" re-runs just that day. Day
   efficiency shows Paid hours, Shift buffer and Utilisation again.
+- **v0.20** — Deployable as a static site (Railway-ready): a `serve`-based
+  `start` script, `railway.json`, and an `engines` field. The bundled sample
+  CSVs ship inside the build, so a hosted demo keeps its sample data with no
+  backend or database.
 
 ---
 
