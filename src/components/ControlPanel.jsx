@@ -27,6 +27,9 @@ export default function ControlPanel({
   sourceLabel,
   onUpload,
   onLoadSample,
+  samples,
+  sampleKey,
+  onSampleKeyChange,
   onLoadSaved,
   onClearSaved,
   hasSavedUpload,
@@ -88,6 +91,20 @@ export default function ControlPanel({
             <button className="btn" onClick={onLoadSaved}>
               Load saved
             </button>
+          )}
+          {samples?.length > 1 && (
+            <select
+              className="btn"
+              value={sampleKey}
+              onChange={(e) => onSampleKeyChange(e.target.value)}
+              title="Choose which bundled dataset to load"
+            >
+              {samples.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           )}
           <button className="btn" onClick={onLoadSample}>
             Load sample

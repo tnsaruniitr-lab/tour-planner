@@ -47,13 +47,18 @@ const DEFAULT_ROSTER = [
   { count: 2, hours: 5, start: '09:00' },
 ];
 
-// The built-in planner dataset — a realistic week of 82 patients
-// (≈605 visits/week), bundled in public/ so it is always available.
-const SAMPLE_CSV_URL = '/sample-patients.csv';
-const SAMPLE_LABEL = 'weekly sample — 605 visits/week';
+// Built-in planner datasets, bundled in public/ so they are always available.
+// Pick which one to load via the dataset selector in the control panel.
+const SAMPLES = [
+  { key: 'ambulant', url: '/sample-patients-ambulant.csv',
+    label: 'Ambulant week — 18.–24.05.2026 (164 patients)' },
+  { key: 'demo', url: '/sample-patients.csv',
+    label: 'weekly sample — 605 visits/week' },
+];
+const SAMPLE_BY_KEY = Object.fromEntries(SAMPLES.map((s) => [s.key, s]));
 
-async function fetchSamplePatients() {
-  const res = await fetch(SAMPLE_CSV_URL);
+async function fetchSamplePatients(url = SAMPLES[0].url) {
+  const res = await fetch(url);
   if (!res.ok) throw new Error('Sample dataset not found.');
   const parsed = parsePatientsCSV(await res.text());
   if (!parsed.length) throw new Error('Sample dataset is empty.');
@@ -95,6 +100,9 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState('plan');
+
+  // Which bundled dataset the planner's "Load sample" uses.
+  const [sampleKey, setSampleKey] = useState(SAMPLES[0].key);
 
   // ---- Planner state ----
   // The last uploaded file is restored from localStorage on load.
@@ -181,12 +189,14 @@ export default function App() {
   // so the planner always has the full 605-visit dataset ready.
   useEffect(() => {
     if (loadSavedPatients()) return;
-    fetchSamplePatients()
+    const s = SAMPLE_BY_KEY[sampleKey];
+    fetchSamplePatients(s.url)
       .then((parsed) => {
         setPatients(parsed);
-        setSourceLabel(SAMPLE_LABEL);
+        setSourceLabel(s.label);
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The Morning/Evening checkboxes also govern the re-assembled maps: if a
@@ -297,10 +307,11 @@ export default function App() {
   }
 
   function onLoadSample() {
-    fetchSamplePatients()
+    const s = SAMPLE_BY_KEY[sampleKey];
+    fetchSamplePatients(s.url)
       .then((parsed) => {
         setPatients(parsed);
-        setSourceLabel(SAMPLE_LABEL);
+        setSourceLabel(s.label);
         clearPlan();
       })
       .catch((err) => {
@@ -487,9 +498,15 @@ export default function App() {
   async function onLoadSampleTours() {
     try {
       setToursStatus('Loading saved tours…');
-      const res = await fetch('/sample-tours.csv');
-      if (!res.ok) throw new Error('sample-tours.csv not found.');
-      ingestTourTexts([await res.text()]);
+      // Load both bundled tour sets so every date is selectable together:
+      // the ambulant week (18.–24.05.2026) plus the original demo days.
+      const urls = ['/sample-tours-ambulant.csv', '/sample-tours.csv'];
+      const texts = await Promise.all(
+        urls.map((u) => fetch(u).then((r) => (r.ok ? r.text() : '')))
+      );
+      const loaded = texts.filter(Boolean);
+      if (!loaded.length) throw new Error('No bundled tour data found.');
+      ingestTourTexts(loaded);
     } catch (err) {
       setToursErr(true);
       setToursStatus(err.message || 'Could not load saved tours.');
@@ -613,6 +630,9 @@ export default function App() {
             sourceLabel={sourceLabel}
             onUpload={onUpload}
             onLoadSample={onLoadSample}
+            samples={SAMPLES}
+            sampleKey={sampleKey}
+            onSampleKeyChange={setSampleKey}
             onLoadSaved={onLoadSaved}
             onClearSaved={onClearSaved}
             hasSavedUpload={hasSavedUpload}
