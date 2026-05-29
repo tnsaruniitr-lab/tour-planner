@@ -60,7 +60,7 @@ const SAMPLE_BY_KEY = Object.fromEntries(SAMPLES.map((s) => [s.key, s]));
 // Bump this whenever the bundled tour CSVs change, so returning visitors
 // auto-pull the new data once (merged) instead of being stuck on a stale cache.
 const BUNDLE_VERSION_KEY = 'bundledToursVersion';
-const BUNDLE_VERSION = 'ambulant-2026-05-v1';
+const BUNDLE_VERSION = 'ambulant-2026-05-v2';
 
 async function fetchSamplePatients(url = SAMPLES[0].url) {
   const res = await fetch(url);
