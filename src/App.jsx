@@ -57,6 +57,11 @@ const SAMPLES = [
 ];
 const SAMPLE_BY_KEY = Object.fromEntries(SAMPLES.map((s) => [s.key, s]));
 
+// Bump this whenever the bundled tour CSVs change, so returning visitors
+// auto-pull the new data once (merged) instead of being stuck on a stale cache.
+const BUNDLE_VERSION_KEY = 'bundledToursVersion';
+const BUNDLE_VERSION = 'ambulant-2026-05-v1';
+
 async function fetchSamplePatients(url = SAMPLES[0].url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error('Sample dataset not found.');
@@ -196,6 +201,23 @@ export default function App() {
         setSourceLabel(s.label);
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-load the bundled tours once per dataset version, merging them in, so
+  // the daily view shows every date on open without clicking "Load saved" —
+  // even for visitors whose browser cached an older tour set.
+  useEffect(() => {
+    let current = false;
+    try {
+      current = localStorage.getItem(BUNDLE_VERSION_KEY) === BUNDLE_VERSION;
+    } catch {}
+    if (current) return;
+    onLoadSampleTours().finally(() => {
+      try {
+        localStorage.setItem(BUNDLE_VERSION_KEY, BUNDLE_VERSION);
+      } catch {}
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
