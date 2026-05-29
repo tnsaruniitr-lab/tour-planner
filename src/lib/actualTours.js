@@ -79,6 +79,16 @@ export function buildTours(rows) {
     tours[k].visits.sort((a, b) => a.seq - b.seq);
     tours[k].unmapped.sort((a, b) => a.seq - b.seq);
   }
+  // Drop WG / stationary shift tours: every visit at a single location with
+  // several patients — nothing to route. Applies to uploads too, not just the
+  // bundled data, so these stationary shifts never clutter the map or metrics.
+  for (const k of Object.keys(tours)) {
+    const vs = tours[k].visits;
+    if (vs.length < 3) continue;
+    const coords = new Set(vs.map((v) => v.lat + ',' + v.lng));
+    const names = new Set(vs.map((v) => v.patientName));
+    if (coords.size === 1 && names.size >= 3) delete tours[k];
+  }
   return tours;
 }
 
