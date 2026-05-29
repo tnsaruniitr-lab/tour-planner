@@ -204,20 +204,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-load the bundled tours once per dataset version, merging them in, so
-  // the daily view shows every date on open without clicking "Load saved" —
-  // even for visitors whose browser cached an older tour set.
+  // Auto-load the bundled tours once per dataset version so the daily view
+  // shows every date on open without clicking "Load saved". Uses replace (not
+  // merge) so a stale cached set from an older version is cleanly superseded
+  // instead of duplicated (split shifts change visit IDs).
   useEffect(() => {
     let current = false;
     try {
       current = localStorage.getItem(BUNDLE_VERSION_KEY) === BUNDLE_VERSION;
     } catch {}
     if (current) return;
-    onLoadSampleTours().finally(() => {
+    (async () => {
+      try {
+        const urls = ['/sample-tours-ambulant.csv', '/sample-tours.csv'];
+        const texts = await Promise.all(
+          urls.map((u) => fetch(u).then((r) => (r.ok ? r.text() : '')))
+        );
+        const loaded = texts.filter(Boolean);
+        if (loaded.length) ingestTourTexts(loaded, true);
+      } catch {}
       try {
         localStorage.setItem(BUNDLE_VERSION_KEY, BUNDLE_VERSION);
       } catch {}
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -487,8 +496,8 @@ export default function App() {
   }
 
   // ---- Visualiser handlers ----
-  function ingestTourTexts(texts) {
-    const merged = { ...tourRows };
+  function ingestTourTexts(texts, replace = false) {
+    const merged = replace ? {} : { ...tourRows };
     for (const text of texts) {
       const rows = parseActualTours(text);
       for (const r of rows) merged[rowKey(r)] = r;
