@@ -537,7 +537,7 @@ export default function App() {
       );
       const loaded = texts.filter(Boolean);
       if (!loaded.length) throw new Error('No bundled tour data found.');
-      ingestTourTexts(loaded);
+      ingestTourTexts(loaded, true); // replace, so the button always loads the clean bundle
     } catch (err) {
       setToursErr(true);
       setToursStatus(err.message || 'Could not load saved tours.');
