@@ -32,6 +32,7 @@ import {
 } from './lib/tourStore';
 import { reassembleAll } from './lib/reassemble';
 import { moveStop, aggregate } from './lib/editTours';
+import { optimizeClusters } from './lib/optimize';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -162,6 +163,24 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [editHistory, setEditHistory] = useState([]); // pre-move snapshots = undo stack
   const [reassembling, setReassembling] = useState(false);
+  // 'auto' = the re-assembled plan as planned; 'milkrun' = each tour locally
+  // optimised into a clean loop. The toggle flips both re-assembled maps.
+  const [routeView, setRouteView] = useState('auto');
+
+  // Milk-run optimisation of the current re-assembled plan (both modes).
+  // Recomputes whenever the plan changes (incl. after a manual drag) so the
+  // optimised view always reflects the live assignment.
+  const reGapMin = Math.round((parseFloat(reForm.gapHours) || 3) * 60);
+  const optimized = useMemo(
+    () =>
+      reassembled
+        ? {
+            file: optimizeClusters(reassembled.file.clusters, reGapMin),
+            fewest: optimizeClusters(reassembled.fewest.clusters, reGapMin),
+          }
+        : null,
+    [reassembled, reGapMin]
+  );
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -246,12 +265,17 @@ export default function App() {
     reMorningKeys.length > 0 && reMorningKeys.every((k) => hiddenTours[k]);
   const eveningHidden =
     reEveningKeys.length > 0 && reEveningKeys.every((k) => hiddenTours[k]);
-  const reClusters = (modeResult) =>
-    modeResult
-      ? modeResult.clusters.filter((c) =>
-          c.period === 'morning' ? !morningHidden : !eveningHidden
-        )
+  const reClusters = (mode) => {
+    const src =
+      routeView === 'milkrun' && optimized
+        ? optimized[mode]
+        : reassembled
+        ? reassembled[mode].clusters
+        : null;
+    return src
+      ? src.filter((c) => (c.period === 'morning' ? !morningHidden : !eveningHidden))
       : [];
+  };
   const multiMap = appMode === 'actual' && !!reassembled;
 
   // ---- Planner handlers ----
@@ -754,6 +778,9 @@ export default function App() {
             onReassemble={onReassemble}
             reassembling={reassembling}
             reassembled={reassembled}
+            optimized={optimized}
+            routeView={routeView}
+            onRouteViewChange={setRouteView}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}
@@ -805,25 +832,29 @@ export default function App() {
           <>
             <div className="map-pane">
               <div className="map-label">
-                Re-assembled — same as file{editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
+                Re-assembled — same as file
+                {routeView === 'milkrun' && <span className="map-hint">· milk-run optimised</span>}
+                {editMode && routeView === 'auto' && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>
               <MapView
-                dayPlan={{ clusters: reClusters(reassembled.file) }}
+                dayPlan={{ clusters: reClusters('file') }}
                 showZones={true}
                 scrollZoom={false}
-                editable={editMode}
+                editable={editMode && routeView === 'auto'}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
               />
             </div>
             <div className="map-pane">
               <div className="map-label">
-                Re-assembled — fewest nurses{editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
+                Re-assembled — fewest nurses
+                {routeView === 'milkrun' && <span className="map-hint">· milk-run optimised</span>}
+                {editMode && routeView === 'auto' && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>
               <MapView
-                dayPlan={{ clusters: reClusters(reassembled.fewest) }}
+                dayPlan={{ clusters: reClusters('fewest') }}
                 showZones={true}
                 scrollZoom={false}
-                editable={editMode}
+                editable={editMode && routeView === 'auto'}
                 onMoveStop={(fromId, order, ll) => onReassignStop('fewest', fromId, order, ll)}
               />
             </div>

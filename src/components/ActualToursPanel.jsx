@@ -48,6 +48,9 @@ export default function ActualToursPanel({
   onReassemble,
   reassembling,
   reassembled,
+  optimized,
+  routeView,
+  onRouteViewChange,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -58,6 +61,8 @@ export default function ActualToursPanel({
   const [compPeriod, setCompPeriod] = useState('both');
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
   const totalStops = toursForDate.reduce((s, t) => s + countStops(t.visits), 0);
+  // Milk-run = the File plan with each tour locally optimised into a clean loop.
+  const optFileResult = optimized ? { clusters: optimized.file } : null;
 
   // Morning/Evening classification by shift start vs. the cutoff.
   const cutoff = hhmmToMin(amPmCutoff);
@@ -336,7 +341,34 @@ export default function ActualToursPanel({
                 <p className="note" style={{ margin: '0 0 8px' }}>
                   Edit on — drag a dot on a re-assembled map onto another tour to
                   move it there. Undo steps back; Reset restores the auto plan.
+                  Editing works in the <b>Auto</b> view.
                 </p>
+              )}
+              {optimized && (
+                <>
+                  <div className="mode-toggle" style={{ margin: '6px 0' }}>
+                    <span style={{ alignSelf: 'center', marginRight: 8, fontSize: 12, opacity: 0.7 }}>
+                      Routes
+                    </span>
+                    <button
+                      className={routeView === 'auto' ? 'active' : ''}
+                      onClick={() => onRouteViewChange('auto')}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      className={routeView === 'milkrun' ? 'active' : ''}
+                      onClick={() => onRouteViewChange('milkrun')}
+                    >
+                      Milk-run
+                    </button>
+                  </div>
+                  <p className="note" style={{ margin: '0 0 8px' }}>
+                    {routeView === 'milkrun'
+                      ? 'Milk-run: each tour re-ordered into a clean loop (2-opt), repeats slotted on the return leg ≥ the gap apart. Flip to Auto to edit.'
+                      : 'Auto: the re-assembled plan as planned. Flip to Milk-run to see each tour optimised into a circular route.'}
+                  </p>
+                </>
               )}
               <div className="mode-toggle" style={{ margin: '10px 0 6px' }}>
                 <button
@@ -365,6 +397,7 @@ export default function ActualToursPanel({
                     <th>Actual</th>
                     <th>File</th>
                     <th>Fewest</th>
+                    <th>Milk-run</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -373,32 +406,38 @@ export default function ActualToursPanel({
                     <td>{pct(compActEff)}</td>
                     <td>{pct(modeMetrics(reassembled.file).eff)}</td>
                     <td>{pct(modeMetrics(reassembled.fewest).eff)}</td>
+                    <td>{pct(modeMetrics(optFileResult).eff)}</td>
                   </tr>
                   <tr>
                     <td>Travel</td>
                     <td>{pct(compActTrvPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).travelPct)}</td>
                     <td>{pct(modeMetrics(reassembled.fewest).travelPct)}</td>
+                    <td>{pct(modeMetrics(optFileResult).travelPct)}</td>
                   </tr>
                   <tr>
                     <td>Waiting</td>
                     <td>{pct(compActWaitPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).waitPct)}</td>
                     <td>{pct(modeMetrics(reassembled.fewest).waitPct)}</td>
+                    <td>{pct(modeMetrics(optFileResult).waitPct)}</td>
                   </tr>
                   <tr>
                     <td>Tours</td>
                     <td>{compActTours.length}</td>
                     <td>{modeMetrics(reassembled.file).tours}</td>
                     <td>{modeMetrics(reassembled.fewest).tours}</td>
+                    <td>{modeMetrics(optFileResult).tours}</td>
                   </tr>
                 </tbody>
               </table>
               <p className="note">
                 Actual efficiency = service ÷ (service + travel + recorded
                 waiting from the file); re-planned modes are scheduled tight,
-                so they carry no waiting. Toggle Morning / Evening / Both
-                above. A map for each mode shows below.
+                so they carry no waiting. <b>Milk-run</b> = the File plan with
+                each tour re-ordered into a clean loop (travel is a
+                straight-line×1.5 estimate, so read the trend). Toggle Morning /
+                Evening / Both above. A map for each mode shows below.
               </p>
 
               {(() => {
