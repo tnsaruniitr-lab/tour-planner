@@ -317,24 +317,35 @@ export default function App() {
         ? reassembled[mode].clusters
         : null;
     if (!src) return [];
-    let cl = src.filter((c) =>
-      c.period === 'morning' ? !morningHidden : !eveningHidden
-    );
-    // Linked selection: when one actual tour is picked, show only the proposed
-    // tour its nurse is mapped to (same period) — so all maps line up.
+    const cutoffM = hhmmToMin(amPmCutoff);
+    const periodOf = (t) =>
+      hhmmToMin(t.shiftStart) < cutoffM ? 'morning' : 'evening';
+
+    // Single-tour selection takes precedence: show only the proposed tour the
+    // selected nurse is mapped to, so all maps line up.
     if (!allView && selectedTour) {
-      const selPeriod =
-        hhmmToMin(selectedTour.shiftStart) < hhmmToMin(amPmCutoff)
-          ? 'morning'
-          : 'evening';
+      const selPeriod = periodOf(selectedTour);
       const mappedId = Object.keys(nurseAssign).find(
         (id) =>
           nurseAssign[id]?.name === selectedTour.nurseName &&
           nurseAssign[id]?.period === selPeriod
       );
-      if (mappedId != null) cl = cl.filter((c) => String(c.id) === mappedId);
+      if (mappedId != null) return src.filter((c) => String(c.id) === mappedId);
     }
-    return cl;
+
+    // Symmetric shift selector: hide a proposed tour when its mapped nurse's
+    // actual shift is unchecked (mirrors the actual map). Falls back to the
+    // whole-period master hide for any unmapped cluster.
+    return src.filter((c) => {
+      const a = nurseAssign[c.id];
+      if (a) {
+        const t = toursForDate.find(
+          (t) => t.nurseName === a.name && periodOf(t) === a.period
+        );
+        return !t || !hiddenTours[t.key];
+      }
+      return c.period === 'morning' ? !morningHidden : !eveningHidden;
+    });
   };
   const multiMap = appMode === 'actual' && !!reassembled;
 
