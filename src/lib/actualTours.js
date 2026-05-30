@@ -2,6 +2,7 @@ import Papa from 'papaparse';
 import { hhmmToMin } from './schedule';
 import { clusterColor } from './colors';
 import { fetchTravelMatrix, straightLineMatrix } from './osrm';
+import { sameSpot } from './stops';
 
 // Sentinel value for the "show every tour" dropdown entry.
 export const ALL_TOURS = '__all__';
@@ -130,6 +131,10 @@ export async function computeTourTravelMin(tour) {
   let matrix = await fetchTravelMatrix(pts, 50);
   if (!matrix) matrix = straightLineMatrix(pts, 30, 50);
   let total = 0;
-  for (let i = 0; i < pts.length - 1; i++) total += matrix[i][i + 1] || 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    // Consecutive visits at the same location involve no road travel.
+    if (sameSpot(pts[i], pts[i + 1])) continue;
+    total += matrix[i][i + 1] || 0;
+  }
   return total;
 }

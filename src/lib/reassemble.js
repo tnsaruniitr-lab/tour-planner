@@ -1,6 +1,7 @@
 import { buildPlan } from './pipeline';
 import { hhmmToMin } from './schedule';
 import { clusterColor } from './colors';
+import { mergeSamePatientRuns } from './stops';
 
 // Of a shift's length, the share assumed available for service work.
 const SERVICE_SHARE = 0.85;
@@ -67,12 +68,15 @@ export async function reassembleDay(tours, opts) {
     (t) => hhmmToMin(t.shiftStart) >= opts.cutoffMin
   );
 
+  // Merge each patient's back-to-back same-address service blocks first, so a
+  // patient seen twice in one sitting is planned as one stop — not two return
+  // trips an hour apart (which would inflate travel and clutter the map).
   const morningPatients = poolToPatients(
-    morningTours.flatMap((t) => t.visits),
+    morningTours.flatMap((t) => mergeSamePatientRuns(t.visits)),
     'm'
   );
   const eveningPatients = poolToPatients(
-    eveningTours.flatMap((t) => t.visits),
+    eveningTours.flatMap((t) => mergeSamePatientRuns(t.visits)),
     'e'
   );
 

@@ -11,13 +11,22 @@ import {
 import L from 'leaflet';
 import { minToHHMM } from '../lib/schedule';
 import { obfuscateName } from '../lib/obfuscate';
+import { groupStopsBySpot } from '../lib/stops';
 
 const LONDON = [51.505, -0.12];
 
-function stopIcon(color, n) {
+// `count` > 1 marks a combined stop (several visits at one location) with a
+// small badge, so a single dot still signals there is more underneath.
+function stopIcon(color, n, count = 1) {
+  const badge =
+    count > 1
+      ? `<span style="position:absolute;top:-7px;right:-7px;min-width:15px;height:15px;` +
+        `padding:0 3px;border-radius:9px;background:#111;color:#fff;border:1.5px solid #fff;` +
+        `font-size:10px;font-weight:700;line-height:15px;text-align:center;box-sizing:border-box;">${count}</span>`
+      : '';
   return L.divIcon({
     className: 'stop-divicon',
-    html: `<div class="stop-marker" style="background:${color}">${n}</div>`,
+    html: `<div class="stop-marker" style="background:${color};position:relative">${n}${badge}</div>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
   });
@@ -93,38 +102,99 @@ export default function MapView({
       ))}
 
       {clusters.map((c) =>
-        c.stops.map((s) => (
-          <Marker
-            key={'stop' + c.id + '-' + s.order}
-            position={[s.lat, s.lng]}
-            icon={stopIcon(c.color, s.order)}
-            draggable={editable}
-            eventHandlers={
-              editable && onMoveStop
-                ? {
-                    dragend: (e) => {
-                      const ll = e.target.getLatLng();
-                      onMoveStop(c.id, s.order, [ll.lat, ll.lng]);
-                    },
-                  }
-                : undefined
-            }
-          >
-            <Popup>
-              <div className="popup-title">{obfuscateName(s.patient.name)}</div>
-              {s.patient.address && (
-                <div className="popup-row">{s.patient.address}</div>
-              )}
-              <div className="popup-row popup-visit">
-                {s.visitsTotal > 1
-                  ? `Visit ${s.visitNum} of ${s.visitsTotal}`
-                  : 'Visit'}{' '}
-                · {minToHHMM(s.arrive)}–{minToHHMM(s.depart)}
-              </div>
-              <div className="popup-row">Service: {s.patient.serviceTime} min</div>
-            </Popup>
-          </Marker>
-        ))
+        groupStopsBySpot(c.stops).map((g, gi) => {
+          const onSite = g.members.reduce(
+            (s, m) => s + (m.patient?.serviceTime || 0),
+            0
+          );
+          const span = `${minToHHMM(g.members[0].arrive)}–${minToHHMM(
+            g.members[g.members.length - 1].depart
+          )}`;
+          const combined = g.members.length > 1;
+          const onePatient = g.names.length === 1;
+          return (
+            <Marker
+              key={'stop' + c.id + '-' + gi}
+              position={[g.lat, g.lng]}
+              icon={stopIcon(c.color, gi + 1, g.members.length)}
+              draggable={editable}
+              eventHandlers={
+                editable && onMoveStop
+                  ? {
+                      dragend: (e) => {
+                        const ll = e.target.getLatLng();
+                        onMoveStop(c.id, g.orders, [ll.lat, ll.lng]);
+                      },
+                    }
+                  : undefined
+              }
+            >
+              <Popup>
+                {!combined ? (
+                  <>
+                    <div className="popup-title">
+                      {obfuscateName(g.members[0].patient.name)}
+                    </div>
+                    {g.members[0].patient.address && (
+                      <div className="popup-row">
+                        {g.members[0].patient.address}
+                      </div>
+                    )}
+                    <div className="popup-row popup-visit">Visit · {span}</div>
+                    <div className="popup-row">Service: {onSite} min</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="popup-title">
+                      {onePatient
+                        ? obfuscateName(g.names[0])
+                        : `${g.names.length} patients · 1 stop`}
+                    </div>
+                    {g.members[0].patient.address && (
+                      <div className="popup-row">
+                        {g.members[0].patient.address}
+                      </div>
+                    )}
+                    <div className="popup-row popup-visit">
+                      {onePatient
+                        ? `${g.members.length} service blocks`
+                        : `${g.names.length} patients`}{' '}
+                      · {span} · {onSite} min on site
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        borderTop: '1px solid #e2e2e2',
+                        paddingTop: 4,
+                      }}
+                    >
+                      {g.members.map((m, mi) => (
+                        <div
+                          key={mi}
+                          className="popup-row"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: 10,
+                          }}
+                        >
+                          <span>
+                            {onePatient
+                              ? `Block ${mi + 1}`
+                              : obfuscateName(m.patient.name)}
+                          </span>
+                          <span style={{ whiteSpace: 'nowrap', opacity: 0.75 }}>
+                            {minToHHMM(m.arrive)} · {m.patient?.serviceTime || 0}m
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </Popup>
+            </Marker>
+          );
+        })
       )}
     </MapContainer>
   );

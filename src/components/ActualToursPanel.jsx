@@ -3,6 +3,7 @@ import { ALL_TOURS } from '../lib/actualTours';
 import { clusterColor } from '../lib/colors';
 import { hhmmToMin } from '../lib/schedule';
 import { obfuscateName } from '../lib/obfuscate';
+import { countStops } from '../lib/stops';
 
 function fmtDuration(min) {
   if (min == null) return '—';
@@ -56,6 +57,7 @@ export default function ActualToursPanel({
   const [effType, setEffType] = useState('actual');
   const [compPeriod, setCompPeriod] = useState('both');
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
+  const totalStops = toursForDate.reduce((s, t) => s + countStops(t.visits), 0);
 
   // Morning/Evening classification by shift start vs. the cutoff.
   const cutoff = hhmmToMin(amPmCutoff);
@@ -539,6 +541,10 @@ export default function ActualToursPanel({
               <b>{toursForDate.length}</b>
             </div>
             <div className="stat">
+              <span>Map dots (stops)</span>
+              <b>{totalStops}</b>
+            </div>
+            <div className="stat">
               <span>Total visits mapped</span>
               <b>{totalVisits}</b>
             </div>
@@ -712,6 +718,10 @@ export default function ActualToursPanel({
             <div className="stat">
               <span>Visits mapped</span>
               <b>{selectedTour.visits.length}</b>
+            </div>
+            <div className="stat">
+              <span>Map dots (stops)</span>
+              <b>{countStops(selectedTour.visits)}</b>
             </div>
             <div className="stat">
               <span>Service / Travel / Wait</span>

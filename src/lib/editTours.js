@@ -42,13 +42,16 @@ function rebuild(cluster) {
   };
 }
 
-// Move stop `stopOrder` out of cluster `fromId` into whichever other cluster is
-// closest to the drop point, inserting next to that tour's nearest stop.
+// Move stop(s) out of cluster `fromId` into whichever other cluster is closest
+// to the drop point, inserting next to that tour's nearest stop. `stopOrder`
+// may be a single order or an array of orders (a combined stop — several
+// co-located visits — moves together as one unit).
 // Returns a new clusters array (both tours rebuilt) or the original on no-op.
 export function moveStop(clusters, fromId, stopOrder, drop) {
+  const orders = Array.isArray(stopOrder) ? stopOrder : [stopOrder];
   const from = clusters.find((c) => c.id === fromId);
-  const stop = from?.stops.find((s) => s.order === stopOrder);
-  if (!stop) return clusters;
+  const moving = from?.stops.filter((s) => orders.includes(s.order)) || [];
+  if (!moving.length) return clusters;
 
   let target = null;
   let bestKm = Infinity;
@@ -67,10 +70,10 @@ export function moveStop(clusters, fromId, stopOrder, drop) {
     if (km < closeKm) { closeKm = km; insertAt = i + 1; }
   });
 
-  const fromStops = from.stops.filter((s) => s.order !== stopOrder);
+  const fromStops = from.stops.filter((s) => !orders.includes(s.order));
   const targetStops = [
     ...target.stops.slice(0, insertAt),
-    { ...stop },
+    ...moving.map((s) => ({ ...s })),
     ...target.stops.slice(insertAt),
   ];
   return clusters.map((c) => {
