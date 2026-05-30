@@ -3,7 +3,11 @@
 // patients stay distinguishable.
 //   "Özen Atas, Ayten" -> "xxxn xxxs, xxxen"
 //   "Celik, Hülya"     -> "xxxik, xxxya"
+// Flip MASK_NAMES back to true to re-enable masking. (The bundled CSVs already
+// contain the real names, so masking only ever affected the on-screen display.)
+const MASK_NAMES = false;
+
 export function obfuscateName(name) {
-  if (!name) return name;
+  if (!name || !MASK_NAMES) return name;
   return String(name).replace(/\p{L}+/gu, (word) => 'xxx' + word.slice(3));
 }
