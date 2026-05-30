@@ -62,13 +62,27 @@ export function moveStop(clusters, fromId, stopOrder, drop) {
   }
   if (!target) return clusters;
 
-  // insert right after the target's stop nearest the drop point
+  // Insert into the target's CHEAPEST EDGE — the gap between two consecutive
+  // stops where adding the patient lengthens the route the least — judged by
+  // the patient's own location (the drop only chose which tour to join). This
+  // drops the dot onto the path between the two corner dots, not just after the
+  // nearest one.
+  const ref = moving[0];
   let insertAt = target.stops.length;
-  let closeKm = Infinity;
-  target.stops.forEach((s, i) => {
-    const km = haversine(drop, s);
-    if (km < closeKm) { closeKm = km; insertAt = i + 1; }
-  });
+  let bestCost = Infinity;
+  for (let i = 0; i <= target.stops.length; i++) {
+    const prev = target.stops[i - 1];
+    const next = target.stops[i];
+    let cost;
+    if (prev && next) {
+      cost = haversine(prev, ref) + haversine(ref, next) - haversine(prev, next);
+    } else if (prev) {
+      cost = haversine(prev, ref); // append at the end
+    } else {
+      cost = haversine(ref, next); // prepend at the start
+    }
+    if (cost < bestCost) { bestCost = cost; insertAt = i; }
+  }
 
   const fromStops = from.stops.filter((s) => !orders.includes(s.order));
   const targetStops = [

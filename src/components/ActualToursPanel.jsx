@@ -67,6 +67,8 @@ export default function ActualToursPanel({
   onToggleEditMode,
   onUndoEdit,
   onResetEdits,
+  onReoptimise,
+  reoptimising,
   canUndo,
 }) {
   const [effType, setEffType] = useState('actual');
@@ -338,6 +340,14 @@ export default function ActualToursPanel({
                 </button>
                 <button className="btn" onClick={onResetEdits} disabled={!canUndo}>
                   ⟲ Reset to auto
+                </button>
+                <button
+                  className="btn"
+                  onClick={onReoptimise}
+                  disabled={!canUndo || reoptimising}
+                  title="Re-tidy the edited tours into clean loops and refresh travel/spans"
+                >
+                  {reoptimising ? '⟳ Re-optimising…' : '⟳ Re-optimise'}
                 </button>
               </div>
               {editMode && (

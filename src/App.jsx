@@ -164,6 +164,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [editHistory, setEditHistory] = useState([]); // pre-move snapshots = undo stack
   const [reassembling, setReassembling] = useState(false);
+  const [reoptimising, setReoptimising] = useState(false);
   // 'auto' = the re-assembled plan as planned; 'milkrun' = each tour locally
   // optimised into a clean loop. The toggle flips both re-assembled maps.
   const [routeView, setRouteView] = useState('auto');
@@ -725,6 +726,23 @@ export default function App() {
     setEditHistory([]);
   }
 
+  // After manual moves, re-clean the affected tours (re-run the loop optimiser
+  // on the current assignment) so routes are tidy loops and travel/span reflect
+  // the changes. Explicit (user-confirmed) — clears the undo history. Contracted
+  // shift lengths are kept; spans/overflow update to show the new load.
+  async function onReoptimise() {
+    if (!optimized) return;
+    setReoptimising(true);
+    try {
+      const file = await optimizeClusters(optimized.file, reGapMin);
+      setOptimized({ file });
+      setRouteView('milkrun');
+      setEditHistory([]);
+    } finally {
+      setReoptimising(false);
+    }
+  }
+
   async function onComputeEfficiency() {
     setEffComputing(true);
     try {
@@ -888,6 +906,8 @@ export default function App() {
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}
             onResetEdits={onResetEdits}
+            onReoptimise={onReoptimise}
+            reoptimising={reoptimising}
             canUndo={editHistory.length > 0}
           />
         )}
