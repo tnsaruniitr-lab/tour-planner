@@ -98,12 +98,15 @@ export async function optimizeTravel(reFile, opts = {}) {
   for (const period of ['morning', 'evening']) {
     const cls = clusters.filter((c) => c.period === period);
     if (!cls.length) continue;
+    // Fixed: each nurse's own shift length is the cap. Flexible: any shift may
+    // grow up to maxShiftMin (so patients can consolidate), shrinking others.
+    const flexCap = opts.maxShiftMin || 600;
     const slots = cls.map((c) => {
       const route = clusterPatients(c);
       return {
         id: c.id, color: c.color, period,
         shiftLengthMin: c.shiftLengthMin, shiftStartMin: c.shiftStartMin,
-        cap: c.shiftLengthMin || 600,
+        cap: opts.flexible ? flexCap : (c.shiftLengthMin || 600),
         route, routeTravel: routeTravelSum(route), serviceLoad: svcLoad(route),
       };
     });

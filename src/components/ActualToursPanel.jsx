@@ -64,6 +64,10 @@ export default function ActualToursPanel({
   canUndoNurse,
   insights,
   minTravel,
+  flexShifts,
+  onFlexShiftsChange,
+  flexMaxHours,
+  onFlexMaxHoursChange,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -456,6 +460,73 @@ export default function ActualToursPanel({
                 comparable. Toggle Morning / Evening / Both above; the map shows
                 below.
               </p>
+
+              {mtResult && (
+                <div style={{ marginTop: 8 }}>
+                  <div className="tour-group-title">Min-travel staffing</div>
+                  <div className="mode-toggle" style={{ margin: '4px 0 6px' }}>
+                    <button
+                      className={!flexShifts ? 'active' : ''}
+                      onClick={() => onFlexShiftsChange(false)}
+                    >
+                      Fixed shifts
+                    </button>
+                    <button
+                      className={flexShifts ? 'active' : ''}
+                      onClick={() => onFlexShiftsChange(true)}
+                    >
+                      Flexible
+                    </button>
+                    {flexShifts && (
+                      <label style={{ marginLeft: 8, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        Max&nbsp;(h)
+                        <input
+                          type="number" min="4" max="12" step="0.5"
+                          value={flexMaxHours}
+                          onChange={(e) => onFlexMaxHoursChange(e.target.value)}
+                          style={{ width: 50 }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {flexShifts && (() => {
+                    const span = (c) => {
+                      if (!c.stops.length) return 0;
+                      const a = c.stops.map((s) => s.arrive), d = c.stops.map((s) => s.depart);
+                      return Math.max(...d) - Math.min(...a);
+                    };
+                    const rows = (minTravel || [])
+                      .map((c) => ({ name: nurseAssign[c.id]?.name || '—', period: c.period, orig: c.shiftLengthMin || 0, now: span(c) }))
+                      .sort((a, b) => (a.period < b.period ? -1 : a.period > b.period ? 1 : b.now - a.now));
+                    const totOrig = rows.reduce((s, r) => s + r.orig, 0);
+                    const totNow = rows.reduce((s, r) => s + r.now, 0);
+                    return (
+                      <>
+                        <p className="note" style={{ margin: '0 0 4px' }}>
+                          Shifts resize to consolidate patients for less driving — original → new (span).
+                        </p>
+                        {rows.map((r, i) => {
+                          const d = r.now - r.orig;
+                          const col = Math.abs(d) < 15 ? '#777' : d > 0 ? '#b26a00' : '#1a7f37';
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '2px 4px' }}>
+                              <span style={{ flex: 1 }}>{obfuscateName(r.name)}</span>
+                              <span style={{ opacity: 0.7 }}>{fmtHrsShort(r.orig)} → {fmtHrsShort(r.now)}</span>
+                              <span style={{ width: 46, textAlign: 'right', fontWeight: 600, color: col }}>
+                                {d >= 0 ? '+' : ''}{fmtHrsShort(d)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, borderTop: '1px solid #e2e2e2', marginTop: 4, paddingTop: 4 }}>
+                          <span>Total paid hours</span>
+                          <span>{fmtHrsShort(totOrig)} → {fmtHrsShort(totNow)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               {insights && insights.length > 0 && (
                 <details className="collapsible" open>

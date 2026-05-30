@@ -203,6 +203,10 @@ export default function App() {
 
   // Min-travel mode: re-assign patients to cut total drive time (fixed shifts),
   // then guard so it can never come out worse than milk-run on this data.
+  // Min-travel staffing: 'fixed' keeps each shift length; 'flex' lets shifts
+  // resize (up to flexMaxHours) so patients consolidate for less travel.
+  const [flexShifts, setFlexShifts] = useState(false);
+  const [flexMaxHours, setFlexMaxHours] = useState(8);
   const [minTravel, setMinTravel] = useState(null);
   useEffect(() => {
     if (!reassembled || !optimized) {
@@ -212,7 +216,11 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        const mt = await optimizeTravel(reassembled.file, { gapMin: reGapMin });
+        const mt = await optimizeTravel(reassembled.file, {
+          gapMin: reGapMin,
+          flexible: flexShifts,
+          maxShiftMin: Math.round((parseFloat(flexMaxHours) || 8) * 60),
+        });
         const mtTrv = mt.reduce((s, c) => s + (c.travelMin || 0), 0);
         const milkTrv = (optimized.file || []).reduce((s, c) => s + (c.travelMin || 0), 0);
         if (!cancelled) setMinTravel(mtTrv <= milkTrv ? mt : optimized.file);
@@ -223,7 +231,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [reassembled, reGapMin, optimized]);
+  }, [reassembled, reGapMin, optimized, flexShifts, flexMaxHours]);
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -955,6 +963,10 @@ export default function App() {
             canUndoNurse={nurseHistory.length > 0}
             insights={insights}
             minTravel={minTravel}
+            flexShifts={flexShifts}
+            onFlexShiftsChange={setFlexShifts}
+            flexMaxHours={flexMaxHours}
+            onFlexMaxHoursChange={setFlexMaxHours}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}
