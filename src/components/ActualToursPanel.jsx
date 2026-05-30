@@ -21,6 +21,12 @@ const fmtHrsShort = (min) => {
   return (Number.isInteger(h) ? h : Number(h.toFixed(1))) + 'h';
 };
 
+const SEV = {
+  high: { c: '#c0392b', i: '🔴' },
+  med: { c: '#b26a00', i: '🟠' },
+  low: { c: '#1a7f37', i: '🟢' },
+};
+
 export default function ActualToursPanel({
   toursStatus,
   toursErr,
@@ -56,6 +62,7 @@ export default function ActualToursPanel({
   onUndoNurse,
   onResetNurse,
   canUndoNurse,
+  insights,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -431,6 +438,40 @@ export default function ActualToursPanel({
                 comparable. Toggle Morning / Evening / Both above; the map shows
                 below.
               </p>
+
+              {insights && insights.length > 0 && (
+                <details className="collapsible" open>
+                  <summary>💡 Why the re-plan is better ({insights.length})</summary>
+                  <p className="note" style={{ margin: '4px 0 6px' }}>
+                    ≈{insights.reduce((s, i) => s + (i.impact || 0), 0)} min of
+                    avoidable driving in these — biggest first. Click one to
+                    spotlight that nurse on the maps.
+                  </p>
+                  {insights.map((ins) => {
+                    const s = SEV[ins.sev] || SEV.med;
+                    return (
+                      <div
+                        key={ins.id}
+                        onClick={() => onSelectTour(ins.tourKey)}
+                        title="Click to show this nurse on the maps"
+                        style={{
+                          cursor: 'pointer', padding: '5px 8px', marginBottom: 4,
+                          borderRadius: 6, borderLeft: `3px solid ${s.c}`,
+                          background: '#fafbfc',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>
+                          {s.i} {ins.title}
+                          {ins.impact ? ` · ~${ins.impact}m` : ''}
+                        </div>
+                        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>
+                          {ins.detail}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </details>
+              )}
 
               {reassembled.file && Object.keys(nurseAssign || {}).length > 0 && (
                 <div style={{ marginTop: 10 }}>

@@ -34,6 +34,7 @@ import { reassembleAll } from './lib/reassemble';
 import { moveStop, aggregate } from './lib/editTours';
 import { optimizeClusters } from './lib/optimize';
 import { buildNurseMap, swapNurses } from './lib/nurseMap';
+import { buildInsights } from './lib/insights';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -308,6 +309,20 @@ export default function App() {
     setNurseAssign(autoNurseMap); // back to the auto length-match
     setNurseHistory([]);
   }
+
+  // Prioritised, plain-English insights: file-plan issues + fixes scouted from
+  // the re-plan, biggest impact first. Recomputes with the plan / cutoff / map.
+  const insights = useMemo(
+    () =>
+      reassembled
+        ? buildInsights(toursForDate, {
+            cutoffMin: hhmmToMin(amPmCutoff),
+            reClusters: reassembled.file.clusters,
+            nurseAssign,
+          })
+        : [],
+    [reassembled, toursForDate, amPmCutoff, nurseAssign]
+  );
 
   const reClusters = (mode) => {
     const src =
@@ -868,6 +883,7 @@ export default function App() {
             onUndoNurse={onUndoNurse}
             onResetNurse={onResetNurse}
             canUndoNurse={nurseHistory.length > 0}
+            insights={insights}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}

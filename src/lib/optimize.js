@@ -159,3 +159,15 @@ export async function optimizeCluster(cluster, opts = {}) {
 export async function optimizeClusters(clusters, gapMin) {
   return Promise.all((clusters || []).map((c) => optimizeCluster(c, { gapMin })));
 }
+
+// Travel time (min, straight-line ×1.5) along points in their given order.
+export function routeTravelMin(points) {
+  return pathTravel(points || []);
+}
+
+// Best achievable open-path travel (sweep → 2-opt → Or-opt) for the same
+// points — used to measure how much longer the actual order is than a clean loop.
+export function optimalTravelMin(points) {
+  if (!points || points.length < 2) return 0;
+  return pathTravel(twoOpt(orOpt1(twoOpt(sweep(points)))));
+}
