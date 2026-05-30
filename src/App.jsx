@@ -288,9 +288,25 @@ export default function App() {
     [reassembled, toursForDate, amPmCutoff]
   );
   const [nurseAssign, setNurseAssign] = useState({});
-  useEffect(() => setNurseAssign(autoNurseMap), [autoNurseMap]);
+  const [nurseHistory, setNurseHistory] = useState([]); // pre-swap snapshots
+  useEffect(() => {
+    setNurseAssign(autoNurseMap);
+    setNurseHistory([]);
+  }, [autoNurseMap]);
   function onSwapNurse(idA, idB) {
-    setNurseAssign((m) => swapNurses(m, idA, idB));
+    const next = swapNurses(nurseAssign, idA, idB);
+    if (next === nurseAssign) return; // no-op (e.g. cross-period)
+    setNurseHistory((h) => [...h, nurseAssign]);
+    setNurseAssign(next);
+  }
+  function onUndoNurse() {
+    if (!nurseHistory.length) return;
+    setNurseAssign(nurseHistory[nurseHistory.length - 1]);
+    setNurseHistory(nurseHistory.slice(0, -1));
+  }
+  function onResetNurse() {
+    setNurseAssign(autoNurseMap); // back to the auto length-match
+    setNurseHistory([]);
   }
 
   const reClusters = (mode) => {
@@ -838,6 +854,9 @@ export default function App() {
             onRouteViewChange={setRouteView}
             nurseAssign={nurseAssign}
             onSwapNurse={onSwapNurse}
+            onUndoNurse={onUndoNurse}
+            onResetNurse={onResetNurse}
+            canUndoNurse={nurseHistory.length > 0}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}

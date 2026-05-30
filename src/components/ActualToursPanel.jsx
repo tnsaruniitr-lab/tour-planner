@@ -53,6 +53,9 @@ export default function ActualToursPanel({
   onRouteViewChange,
   nurseAssign,
   onSwapNurse,
+  onUndoNurse,
+  onResetNurse,
+  canUndoNurse,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -438,6 +441,14 @@ export default function ActualToursPanel({
                     to swap (same period). Δ = how far the nurse's real shift is
                     from the tour's length.
                   </p>
+                  <div className="edit-bar" style={{ marginBottom: 6 }}>
+                    <button className="btn" onClick={onUndoNurse} disabled={!canUndoNurse}>
+                      ↶ Undo
+                    </button>
+                    <button className="btn" onClick={onResetNurse} disabled={!canUndoNurse}>
+                      ⟲ Reset to original
+                    </button>
+                  </div>
                   {['morning', 'evening'].map((period) => {
                     const rows = (reassembled.file.clusters || [])
                       .filter((c) => c.period === period && nurseAssign[c.id])
