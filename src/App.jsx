@@ -156,7 +156,7 @@ export default function App() {
   const [tourTravel, setTourTravel] = useState(loadTourTravel);
   const [effComputing, setEffComputing] = useState(false);
   const [reForm, setReForm] = useState({
-    gapHours: 3,
+    gapHours: 2.5,
   });
   const [reassembled, setReassembled] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -169,7 +169,7 @@ export default function App() {
   // Milk-run optimisation of the current re-assembled plan (both modes).
   // Recomputes whenever the plan changes (incl. after a manual drag) so the
   // optimised view always reflects the live assignment.
-  const reGapMin = Math.round((parseFloat(reForm.gapHours) || 3) * 60);
+  const reGapMin = Math.round((parseFloat(reForm.gapHours) || 2.5) * 60);
   const optimized = useMemo(
     () =>
       reassembled
@@ -582,7 +582,7 @@ export default function App() {
     try {
       const result = await reassembleAll(toursForDate, {
         cutoffMin: hhmmToMin(amPmCutoff),
-        gapMin: Math.round((parseFloat(reForm.gapHours) || 3) * 60),
+        gapMin: Math.round((parseFloat(reForm.gapHours) || 2.5) * 60),
       });
       setReassembled(result);
       setEditHistory([]); // fresh plan → clear undo history

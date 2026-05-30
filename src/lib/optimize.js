@@ -1,40 +1,39 @@
-// Milk-run optimiser: take a FROZEN tour (its set of stops is fixed) and
-// re-order it into the cleanest, shortest loop — 2-opt removes crossings,
-// Or-opt relocates stragglers, a polar "sweep" gives a circular seed.
-//
-// The hard constraint: a multi-visit patient (two visits split by the time
-// gap) must still be visited twice, ≥ gap apart. Those second visits are held
-// out of the free re-ordering and then slotted back in at the CHEAPEST point
-// that still satisfies the gap — so a revisit rides the natural return leg
-// instead of forcing a backtrack.
+// Milk-run optimiser: take a FROZEN tour (its patients are fixed) and re-order
+// it into the cleanest, shortest loop, then TIME it with the same scheduler the
+// Auto plan uses — so a multi-visit patient's revisit is woven into the loop
+// (other patients served during the gap) instead of the nurse idling. That
+// keeps every tour inside its real shift window: morning stays morning.
 import { haversine, centroidLatLng, coverageRadiusKm } from './geo';
+import { simulateTour } from './schedule';
+import { straightLineMatrix } from './osrm';
 
 const SPEED_KMH = 30;
 const TRAFFIC = 1.5; // straight-line inflated to approximate road time
+// Repeat visits are nudged a few metres so a patient's two visits stay distinct
+// dots (mirrors the planner's pipeline).
+const REVISIT_OFFSET = { lat: 0.00025, lng: 0.00035 };
 
 function legMin(a, b) {
   return (haversine(a, b) / SPEED_KMH) * 60 * TRAFFIC;
 }
 
-// Travel time along an OPEN path (no return-to-start leg).
-function pathTravel(stops) {
+function pathTravel(pts) {
   let t = 0;
-  for (let i = 1; i < stops.length; i++) t += legMin(stops[i - 1], stops[i]);
+  for (let i = 1; i < pts.length; i++) t += legMin(pts[i - 1], pts[i]);
   return t;
 }
 
 // Polar-angle order around the centroid → a naturally circular starting tour.
-function sweep(stops) {
-  if (stops.length < 3) return stops.slice();
-  const c = centroidLatLng(stops);
-  return stops
-    .map((s) => ({ s, a: Math.atan2(s.lat - c.lat, s.lng - c.lng) }))
+function sweep(pts) {
+  if (pts.length < 3) return pts.slice();
+  const c = centroidLatLng(pts);
+  return pts
+    .map((p) => ({ p, a: Math.atan2(p.lat - c.lat, p.lng - c.lng) }))
     .sort((x, y) => x.a - y.a)
-    .map((x) => x.s);
+    .map((x) => x.p);
 }
 
-// 2-opt for an open path (delta-evaluated). Reverses crossing segments until
-// no swap shortens the route — the result has no crossings = "circular".
+// 2-opt for an open path — reverses crossing segments until none shorten it.
 function twoOpt(input) {
   const route = input.slice();
   const n = route.length;
@@ -60,7 +59,7 @@ function twoOpt(input) {
   return route;
 }
 
-// Or-opt: relocate a single stop to its cheapest slot (catches what 2-opt misses).
+// Or-opt: relocate a single stop to its cheapest slot.
 function orOpt1(input) {
   let best = input.slice();
   let bestCost = pathTravel(best);
@@ -82,95 +81,71 @@ function orOpt1(input) {
   return best;
 }
 
-// Arrival clock for each position in an order, from a fixed start time.
-function arrives(order, clockStart) {
-  const out = [];
-  let clock = clockStart;
-  for (let i = 0; i < order.length; i++) {
-    if (i > 0) clock += legMin(order[i - 1], order[i]);
-    out.push(clock);
-    clock += order[i].patient?.serviceTime || 0;
-  }
-  return out;
-}
-
-// Slot a repeat visit into the cheapest position AFTER its first visit that
-// still leaves ≥ gapMin between the two arrivals (the gap is a minimum, so we
-// use the whole remaining window to find the least-detour spot).
-function insertRepeat(order, repeat, gapMin, clockStart) {
-  const pid = repeat.patient?.id;
-  const fi = order.findIndex((s) => s.patient?.id === pid);
-  if (fi < 0) return order.concat([repeat]);
-  // Prefer the cheapest slot where the gap is already met without waiting;
-  // if the tour is too short for that, fall back to the cheapest slot overall
-  // (recompute() then enforces the gap by waiting, exactly like the scheduler).
-  let bestPos = -1, bestCost = Infinity; // gap satisfied, no wait
-  let anyPos = -1, anyCost = Infinity; // cheapest regardless
-  for (let pos = fi + 1; pos <= order.length; pos++) {
-    const cand = order.slice(0, pos).concat([repeat], order.slice(pos));
-    const cost = pathTravel(cand);
-    if (cost < anyCost) { anyCost = cost; anyPos = pos; }
-    const a = arrives(cand, clockStart);
-    if (a[pos] - a[fi] >= gapMin && cost < bestCost) { bestCost = cost; bestPos = pos; }
-  }
-  const pos = bestPos >= 0 ? bestPos : anyPos;
-  return order.slice(0, pos).concat([repeat], order.slice(pos));
-}
-
-// Renumber, re-walk the clock, and refresh geometry/metrics for a new order.
-// A repeat visit (visitNum > 1) is held until ≥ gapMin after the patient's
-// first visit — waiting if the route reaches it sooner — so the time-gap
-// constraint is guaranteed regardless of where it was slotted.
-function recompute(cluster, order, clockStart, gapMin = 0) {
-  const stops = order.map((s, i) => ({ ...s, order: i + 1 }));
-  let clock = clockStart;
-  let serviceMin = 0;
-  let travelMin = 0;
-  const firstArrive = {};
-  for (let i = 0; i < stops.length; i++) {
-    if (i > 0) { const t = legMin(stops[i - 1], stops[i]); travelMin += t; clock += t; }
-    const s = stops[i];
-    const pid = s.patient?.id;
-    if (s.visitNum > 1 && pid != null && firstArrive[pid] != null) {
-      const earliest = firstArrive[pid] + gapMin;
-      if (clock < earliest) clock = earliest; // wait to honour the gap
+// One patient object per patient id present in the cluster.
+function clusterPatients(cluster) {
+  const seen = new Map();
+  for (const s of cluster.stops || []) {
+    const p = s.patient;
+    if (!p || p.id == null) continue;
+    if (!seen.has(p.id)) {
+      seen.set(p.id, { ...p, visitsPerDay: s.visitsTotal || p.visitsPerDay || 1 });
     }
-    const svc = s.patient?.serviceTime || 0;
-    s.arrive = clock;
-    s.depart = clock + svc;
-    if (pid != null && firstArrive[pid] == null) firstArrive[pid] = clock;
-    clock += svc;
-    serviceMin += svc;
   }
-  const center = stops.length ? centroidLatLng(stops) : cluster.center;
-  const radiusKm = stops.length ? coverageRadiusKm(center, stops) : 0;
+  return [...seen.values()];
+}
+
+// Optimise one frozen tour into a milk-run loop, correctly timed.
+export function optimizeCluster(cluster, opts = {}) {
+  const gapMin = opts.gapMin ?? 150; // 2.5h floor between a patient's two visits
+  const patients = clusterPatients(cluster);
+  if (patients.length < 2) return cluster;
+
+  // 1) circular geographic order (sweep seed → 2-opt → Or-opt)
+  let order = twoOpt(orOpt1(twoOpt(sweep(patients))));
+  // 2) pull multi-visit patients toward the front so the revisit has room
+  //    inside the shift (same as the planner's pipeline).
+  order = [...order].sort((a, b) => (b.visitsPerDay > 1) - (a.visitsPerDay > 1));
+
+  // 3) time it with the SAME interleaving scheduler the Auto plan uses — it
+  //    serves other patients during a revisit's gap rather than idling, so the
+  //    clock never runs away past the shift.
+  const matrix = straightLineMatrix(order, SPEED_KMH, 50);
+  const start =
+    cluster.shiftStartMin ??
+    Math.min(...cluster.stops.map((s) => s.arrive ?? 480));
+  const lengthMin = cluster.shiftLengthMin ?? 480;
+  const sim = simulateTour(order, matrix, {
+    shiftStartMin: start,
+    shiftEndMin: start + lengthMin,
+    gapMin,
+  });
+
+  const stops = sim.stops.map((s, i) => {
+    const k = s.visitNum - 1;
+    return {
+      order: i + 1,
+      patient: s.patient,
+      visitNum: s.visitNum,
+      visitsTotal: s.visitsTotal,
+      isReturn: s.visitNum > 1,
+      lat: s.patient.lat + k * REVISIT_OFFSET.lat,
+      lng: s.patient.lng + k * REVISIT_OFFSET.lng,
+      arrive: s.arrive,
+      depart: s.depart,
+    };
+  });
+  const center = centroidLatLng(patients);
   return {
     ...cluster,
     stops,
     routeLatLng: stops.map((s) => [s.lat, s.lng]),
     center,
-    radiusKm,
-    serviceMin,
-    travelMin: Math.round(travelMin),
-    patientCount: stops.length,
+    radiusKm: coverageRadiusKm(center, patients),
+    serviceMin: sim.serviceMin,
+    travelMin: Math.round(sim.travelMin),
+    overflow: sim.overflow, // true if the tour runs past its shift end
+    patientCount: patients.length,
   };
-}
-
-// Optimise one frozen tour into a milk-run loop.
-export function optimizeCluster(cluster, opts = {}) {
-  const gapMin = opts.gapMin ?? 180;
-  const stops = cluster.stops || [];
-  if (stops.length < 2) return cluster;
-  const clockStart = Math.min(...stops.map((s) => s.arrive ?? 0));
-
-  // Hold out repeat (2nd+) visits; freely re-order everything else.
-  const base = stops.filter((s) => !(s.visitNum > 1));
-  const repeats = stops.filter((s) => s.visitNum > 1);
-
-  let order = twoOpt(orOpt1(twoOpt(sweep(base))));
-  for (const r of repeats) order = insertRepeat(order, r, gapMin, clockStart);
-
-  return recompute(cluster, order, clockStart, gapMin);
 }
 
 // Optimise every tour in a list. Returns a new clusters array.

@@ -354,7 +354,7 @@ export default function ActualToursPanel({
                   </div>
                   <p className="note" style={{ margin: '0 0 8px' }}>
                     {routeView === 'milkrun'
-                      ? 'Milk-run: each tour re-ordered into a clean loop (2-opt), repeats slotted on the return leg ≥ the gap apart. Flip to Auto to edit.'
+                      ? 'Milk-run: each tour re-ordered into a clean loop (2-opt) and re-timed by the same scheduler as Auto — revisits woven in ≥ the gap apart, other patients served during the gap (no idle). Flip to Auto to edit.'
                       : 'Auto: the re-assembled plan as planned. Flip to Milk-run to see each tour optimised into a circular route.'}
                   </p>
                 </>
