@@ -159,6 +159,8 @@ export default function App() {
     maxHours: 8,
   });
   const [reassembled, setReassembled] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editHistory, setEditHistory] = useState([]); // pre-move snapshots = undo stack
   const [reassembling, setReassembling] = useState(false);
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
@@ -564,6 +566,7 @@ export default function App() {
         maxHours: parseFloat(reForm.maxHours) || 8,
       });
       setReassembled(result);
+      setEditHistory([]); // fresh plan → clear undo history
     } catch {
       setReassembled(null);
     } finally {
@@ -571,17 +574,34 @@ export default function App() {
     }
   }
 
-  // Manual override: drop a stop onto another tour → reassign + reroute both,
-  // refresh that mode's metrics. Lives in state until the next Re-assemble.
+  // Manual override (only in edit mode): drop a stop onto another tour →
+  // reassign + reroute both, refresh metrics. Each move snapshots the prior
+  // plan onto the undo stack.
   function onReassignStop(mode, fromId, order, ll) {
-    setReassembled((prev) => {
-      if (!prev || !prev[mode]) return prev;
-      const clusters = moveStop(prev[mode].clusters, fromId, order, {
-        lat: ll[0],
-        lng: ll[1],
-      });
-      return { ...prev, [mode]: aggregate({ ...prev[mode], clusters }) };
+    if (!editMode || !reassembled || !reassembled[mode]) return;
+    const clusters = moveStop(reassembled[mode].clusters, fromId, order, {
+      lat: ll[0],
+      lng: ll[1],
     });
+    setEditHistory((h) => [...h, reassembled]);
+    setReassembled({
+      ...reassembled,
+      [mode]: aggregate({ ...reassembled[mode], clusters }),
+    });
+  }
+
+  // Undo the last manual move (multi-step), or discard all moves back to the
+  // freshly re-assembled plan. Both are instant — no recompute.
+  function onUndoEdit() {
+    if (!editHistory.length) return;
+    setReassembled(editHistory[editHistory.length - 1]);
+    setEditHistory(editHistory.slice(0, -1));
+  }
+
+  function onResetEdits() {
+    if (!editHistory.length) return;
+    setReassembled(editHistory[0]); // state before the first move = the auto plan
+    setEditHistory([]);
   }
 
   async function onComputeEfficiency() {
@@ -734,6 +754,11 @@ export default function App() {
             onReassemble={onReassemble}
             reassembling={reassembling}
             reassembled={reassembled}
+            editMode={editMode}
+            onToggleEditMode={() => setEditMode((v) => !v)}
+            onUndoEdit={onUndoEdit}
+            onResetEdits={onResetEdits}
+            canUndo={editHistory.length > 0}
           />
         )}
       </div>
@@ -780,25 +805,25 @@ export default function App() {
           <>
             <div className="map-pane">
               <div className="map-label">
-                Re-assembled — same as file <span className="map-hint">· drag a dot onto another tour to reassign</span>
+                Re-assembled — same as file{editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>
               <MapView
                 dayPlan={{ clusters: reClusters(reassembled.file) }}
                 showZones={true}
                 scrollZoom={false}
-                editable
+                editable={editMode}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
               />
             </div>
             <div className="map-pane">
               <div className="map-label">
-                Re-assembled — fewest nurses <span className="map-hint">· drag a dot onto another tour to reassign</span>
+                Re-assembled — fewest nurses{editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>
               <MapView
                 dayPlan={{ clusters: reClusters(reassembled.fewest) }}
                 showZones={true}
                 scrollZoom={false}
-                editable
+                editable={editMode}
                 onMoveStop={(fromId, order, ll) => onReassignStop('fewest', fromId, order, ll)}
               />
             </div>

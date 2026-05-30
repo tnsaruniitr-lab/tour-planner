@@ -703,6 +703,26 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   opacity: 0.7;
 }
 
+.edit-bar {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+.edit-bar .btn {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 4px;
+}
+.edit-bar .btn.active {
+  background: #2f6df0;
+  color: #fff;
+  border-color: #2f6df0;
+}
+.edit-bar .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .day-tabs {
   position: absolute;
   top: 12px;

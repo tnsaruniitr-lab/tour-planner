@@ -47,6 +47,11 @@ export default function ActualToursPanel({
   onReassemble,
   reassembling,
   reassembled,
+  editMode,
+  onToggleEditMode,
+  onUndoEdit,
+  onResetEdits,
+  canUndo,
 }) {
   const [effType, setEffType] = useState('actual');
   const [compPeriod, setCompPeriod] = useState('both');
@@ -311,6 +316,26 @@ export default function ActualToursPanel({
 
           {reassembled && (
             <>
+              <div className="edit-bar">
+                <button
+                  className={'btn' + (editMode ? ' active' : '')}
+                  onClick={onToggleEditMode}
+                >
+                  {editMode ? '✓ Editing' : '✏ Edit tours'}
+                </button>
+                <button className="btn" onClick={onUndoEdit} disabled={!canUndo}>
+                  ↶ Undo
+                </button>
+                <button className="btn" onClick={onResetEdits} disabled={!canUndo}>
+                  ⟲ Reset to auto
+                </button>
+              </div>
+              {editMode && (
+                <p className="note" style={{ margin: '0 0 8px' }}>
+                  Edit on — drag a dot on a re-assembled map onto another tour to
+                  move it there. Undo steps back; Reset restores the auto plan.
+                </p>
+              )}
               <div className="mode-toggle" style={{ margin: '10px 0 6px' }}>
                 <button
                   className={compPeriod === 'both' ? 'active' : ''}
