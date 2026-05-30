@@ -593,6 +593,12 @@ export default function ActualToursPanel({
                           const a = nurseAssign[c.id];
                           const delta = Math.abs((a.nurseLen || 0) - (a.tourLen || 0));
                           const col = delta <= 60 ? '#1a7f37' : delta <= 120 ? '#b26a00' : '#c0392b';
+                          const work = (c.serviceMin || 0) + (c.travelMin || 0);
+                          const over = work - (c.shiftLengthMin || 0);
+                          const idle = Math.max(0, -over);
+                          const util = c.shiftLengthMin > 0 ? Math.round((100 * work) / c.shiftLengthMin) : 0;
+                          // both extremes flagged: >100% overloaded, <60% loose; ~full is green
+                          const uCol = util > 100 ? '#c0392b' : util >= 80 ? '#1a7f37' : util >= 60 ? '#b26a00' : '#c0392b';
                           return (
                             <div
                               key={c.id}
@@ -605,41 +611,75 @@ export default function ActualToursPanel({
                                 setDragOver(null);
                               }}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '3px 4px', borderRadius: 6,
+                                padding: '3px 4px', borderRadius: 6, marginBottom: 2,
                                 background: dragOver === c.id ? '#eef4ff' : 'transparent',
                               }}
                             >
-                              <span className="dot" style={{ background: c.color }} />
-                              <span style={{ width: 36, fontSize: 12, opacity: 0.75 }}>
-                                {fmtHrsShort(c.shiftLengthMin)}
-                              </span>
-                              <span style={{ opacity: 0.4 }}>←</span>
-                              <span
-                                draggable
-                                onDragStart={() => setDragNurse(c.id)}
-                                onDragEnd={() => { setDragNurse(null); setDragOver(null); }}
-                                title="Drag onto another tour to swap nurses"
-                                style={{
-                                  flex: 1, cursor: 'grab', background: '#f1f3f5',
-                                  border: '1px solid #dde1e6', borderRadius: 6,
-                                  padding: '2px 8px', fontSize: 12, display: 'flex',
-                                  justifyContent: 'space-between', gap: 8,
-                                  opacity: dragNurse === c.id ? 0.4 : 1,
-                                }}
-                              >
-                                <span>⠿ {obfuscateName(a.name)}</span>
-                                <span style={{ opacity: 0.55 }}>{fmtHrsShort(a.nurseLen)}</span>
-                              </span>
-                              <span style={{ width: 44, fontSize: 11, fontWeight: 600, color: col, textAlign: 'right' }}>
-                                Δ{fmtHrsShort(delta)}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="dot" style={{ background: c.color }} />
+                                <span style={{ width: 36, fontSize: 12, opacity: 0.75 }}>
+                                  {fmtHrsShort(c.shiftLengthMin)}
+                                </span>
+                                <span style={{ opacity: 0.4 }}>←</span>
+                                <span
+                                  draggable
+                                  onDragStart={() => setDragNurse(c.id)}
+                                  onDragEnd={() => { setDragNurse(null); setDragOver(null); }}
+                                  title="Drag onto another tour to swap nurses"
+                                  style={{
+                                    flex: 1, cursor: 'grab', background: '#f1f3f5',
+                                    border: '1px solid #dde1e6', borderRadius: 6,
+                                    padding: '2px 8px', fontSize: 12, display: 'flex',
+                                    justifyContent: 'space-between', gap: 8,
+                                    opacity: dragNurse === c.id ? 0.4 : 1,
+                                  }}
+                                >
+                                  <span>⠿ {obfuscateName(a.name)}</span>
+                                  <span style={{ opacity: 0.55 }}>{fmtHrsShort(a.nurseLen)}</span>
+                                </span>
+                                <span style={{ width: 44, fontSize: 11, fontWeight: 600, color: col, textAlign: 'right' }}>
+                                  Δ{fmtHrsShort(delta)}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 10, fontSize: 11, paddingLeft: 18, marginTop: 1, opacity: 0.9 }}>
+                                <span title="care / hands-on">🩺 {fmtHrsShort(c.serviceMin)}</span>
+                                <span title="driving">🚗 {fmtHrsShort(c.travelMin)}</span>
+                                {over > 1 ? (
+                                  <span style={{ color: '#c0392b' }} title="runs past the shift">
+                                    ⚠ {fmtHrsShort(over)} over
+                                  </span>
+                                ) : (
+                                  <span style={{ color: idle >= 60 ? '#b26a00' : '#888' }} title="unused paid time">
+                                    💤 {fmtHrsShort(idle)} idle
+                                  </span>
+                                )}
+                                <span style={{ marginLeft: 'auto', fontWeight: 600, color: uCol }} title="utilisation = work ÷ shift">
+                                  {util}%
+                                </span>
+                              </div>
                             </div>
                           );
                         })}
                       </div>
                     );
                   })}
+                  {(() => {
+                    const cls = (reassembled.file.clusters || []).filter((c) => nurseAssign[c.id]);
+                    const care = cls.reduce((s, c) => s + (c.serviceMin || 0), 0);
+                    const drive = cls.reduce((s, c) => s + (c.travelMin || 0), 0);
+                    const paid = cls.reduce((s, c) => s + (c.shiftLengthMin || 0), 0);
+                    const idle = Math.max(0, paid - care - drive);
+                    const util = paid > 0 ? Math.round((100 * (care + drive)) / paid) : 0;
+                    return (
+                      <div style={{ display: 'flex', gap: 10, fontSize: 11, fontWeight: 600, borderTop: '1px solid #e2e2e2', marginTop: 4, paddingTop: 5, paddingLeft: 18 }}>
+                        <span>Total</span>
+                        <span>🩺 {fmtHrsShort(care)}</span>
+                        <span>🚗 {fmtHrsShort(drive)}</span>
+                        <span>💤 {fmtHrsShort(idle)} idle</span>
+                        <span style={{ marginLeft: 'auto' }}>{util}% of {fmtHrsShort(paid)} paid</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
