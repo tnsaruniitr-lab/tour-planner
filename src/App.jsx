@@ -31,6 +31,7 @@ import {
   clearTourStore,
 } from './lib/tourStore';
 import { reassembleAll } from './lib/reassemble';
+import { moveStop, aggregate } from './lib/editTours';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -570,6 +571,19 @@ export default function App() {
     }
   }
 
+  // Manual override: drop a stop onto another tour → reassign + reroute both,
+  // refresh that mode's metrics. Lives in state until the next Re-assemble.
+  function onReassignStop(mode, fromId, order, ll) {
+    setReassembled((prev) => {
+      if (!prev || !prev[mode]) return prev;
+      const clusters = moveStop(prev[mode].clusters, fromId, order, {
+        lat: ll[0],
+        lng: ll[1],
+      });
+      return { ...prev, [mode]: aggregate({ ...prev[mode], clusters }) };
+    });
+  }
+
   async function onComputeEfficiency() {
     setEffComputing(true);
     try {
@@ -765,19 +779,27 @@ export default function App() {
         {appMode === 'actual' && reassembled && (
           <>
             <div className="map-pane">
-              <div className="map-label">Re-assembled — same as file</div>
+              <div className="map-label">
+                Re-assembled — same as file <span className="map-hint">· drag a dot onto another tour to reassign</span>
+              </div>
               <MapView
                 dayPlan={{ clusters: reClusters(reassembled.file) }}
                 showZones={true}
                 scrollZoom={false}
+                editable
+                onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
               />
             </div>
             <div className="map-pane">
-              <div className="map-label">Re-assembled — fewest nurses</div>
+              <div className="map-label">
+                Re-assembled — fewest nurses <span className="map-hint">· drag a dot onto another tour to reassign</span>
+              </div>
               <MapView
                 dayPlan={{ clusters: reClusters(reassembled.fewest) }}
                 showZones={true}
                 scrollZoom={false}
+                editable
+                onMoveStop={(fromId, order, ll) => onReassignStop('fewest', fromId, order, ll)}
               />
             </div>
           </>

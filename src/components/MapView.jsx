@@ -26,6 +26,9 @@ function stopIcon(color, n) {
 // Fit the viewport to the current day's stops — on plan change and on resize.
 function FitBounds({ clusters }) {
   const map = useMap();
+  // Refit only when the SET of tours changes (new day/plan), not when a stop is
+  // dragged between existing tours — otherwise editing would jump the viewport.
+  const sig = clusters.map((c) => c.id).join(',');
   useEffect(() => {
     const fit = () => {
       const pts = [];
@@ -37,11 +40,18 @@ function FitBounds({ clusters }) {
     fit();
     map.on('resize', fit);
     return () => map.off('resize', fit);
-  }, [clusters, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig, map]);
   return null;
 }
 
-export default function MapView({ dayPlan, showZones = true, scrollZoom = true }) {
+export default function MapView({
+  dayPlan,
+  showZones = true,
+  scrollZoom = true,
+  editable = false,
+  onMoveStop,
+}) {
   const clusters = dayPlan?.clusters || [];
 
   return (
@@ -88,6 +98,17 @@ export default function MapView({ dayPlan, showZones = true, scrollZoom = true }
             key={'stop' + c.id + '-' + s.order}
             position={[s.lat, s.lng]}
             icon={stopIcon(c.color, s.order)}
+            draggable={editable}
+            eventHandlers={
+              editable && onMoveStop
+                ? {
+                    dragend: (e) => {
+                      const ll = e.target.getLatLng();
+                      onMoveStop(c.id, s.order, [ll.lat, ll.lng]);
+                    },
+                  }
+                : undefined
+            }
           >
             <Popup>
               <div className="popup-title">{obfuscateName(s.patient.name)}</div>

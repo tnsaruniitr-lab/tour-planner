@@ -698,6 +698,11 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
+.map-hint {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
 .day-tabs {
   position: absolute;
   top: 12px;
