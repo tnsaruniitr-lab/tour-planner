@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ActualToursPanel from './components/ActualToursPanel';
 import MapView from './components/MapView';
@@ -165,6 +165,10 @@ export default function App() {
   const [editHistory, setEditHistory] = useState([]); // pre-move snapshots = undo stack
   const [reassembling, setReassembling] = useState(false);
   const [reoptimising, setReoptimising] = useState(false);
+  // Map comparison view: stacked (default) or side-by-side; linked zoom/pan.
+  const [mapLayout, setMapLayout] = useState('stacked');
+  const syncRegistry = useRef([]);
+  const syncFlag = useRef(false);
   // 'auto' = the re-assembled plan as planned; 'milkrun' = each tour locally
   // optimised into a clean loop. The toggle flips both re-assembled maps.
   const [routeView, setRouteView] = useState('auto');
@@ -325,6 +329,27 @@ export default function App() {
     [reassembled, toursForDate, amPmCutoff, nurseAssign]
   );
 
+  // Compact comparison for the on-top metrics strip.
+  const cmp = useMemo(() => {
+    if (!reassembled) return null;
+    const sumC = (cls, f) => (cls || []).reduce((s, c) => s + (f(c) || 0), 0);
+    const ratio = (a, b) => (a + b > 0 ? a / (a + b) : 0);
+    const aSvc = toursForDate.reduce((s, t) => s + (t.serviceTimeMin || 0), 0);
+    const aTrv = toursForDate.reduce((s, t) => s + (t.travelTimeMin || 0), 0);
+    const aWait = toursForDate.reduce((s, t) => s + (t.waitingTimeMin || 0), 0);
+    const aTot = aSvc + aTrv + aWait || 1;
+    const fS = sumC(reassembled.file.clusters, (c) => c.serviceMin);
+    const fT = sumC(reassembled.file.clusters, (c) => c.travelMin);
+    const m = optimized?.file || [];
+    const mS = sumC(m, (c) => c.serviceMin);
+    const mT = sumC(m, (c) => c.travelMin);
+    return {
+      actual: { eff: aSvc / aTot, trv: aTrv / aTot },
+      file: { eff: ratio(fS, fT), trv: ratio(fT, fS) },
+      milk: m.length ? { eff: ratio(mS, mT), trv: ratio(mT, mS) } : null,
+    };
+  }, [reassembled, optimized, toursForDate]);
+
   const reClusters = (mode) => {
     const src =
       routeView === 'milkrun' && optimized
@@ -363,7 +388,6 @@ export default function App() {
       return c.period === 'morning' ? !morningHidden : !eveningHidden;
     });
   };
-  const multiMap = appMode === 'actual' && !!reassembled;
 
   // ---- Planner handlers ----
   function onField(name, value) {
@@ -913,46 +937,82 @@ export default function App() {
         )}
       </div>
 
-      <div className="map-area">
-        <div className="map-pane">
-          {appMode === 'plan' && plan && plan.mode === 'weekly' && (
-            <div className="day-tabs">
-              {plan.dayOrder.map((d) => {
-                const n = plan.days[d].clusters.reduce(
-                  (s, c) => s + c.stops.length,
-                  0
-                );
-                return (
-                  <button
-                    key={d}
-                    className={d === activeDay ? 'active' : ''}
-                    onClick={() => setActiveDay(d)}
-                  >
-                    {d} ({n})
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {appMode === 'actual' && reassembled && (
-            <div className="map-label">Actual tours — from file</div>
-          )}
-          <MapView
-            dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
-            showZones={appMode === 'plan'}
-            scrollZoom={!multiMap}
-          />
-          {appMode === 'plan' && !plan && (
-            <div className="map-empty">
-              Load patients, set your shifts, then press GO
-            </div>
-          )}
-          {appMode === 'actual' && !tourDayPlan && (
-            <div className="map-empty">Upload tour CSV files to begin</div>
-          )}
-        </div>
+      <div className={'map-area' + (mapLayout === 'side' ? ' side' : '')}>
         {appMode === 'actual' && reassembled && (
-          <>
+          <div className="map-topbar">
+            {cmp && (
+              <div className="metrics-strip">
+                <span>
+                  Eff&nbsp;· Actual <b>{(cmp.actual.eff * 100).toFixed(0)}%</b> · File{' '}
+                  <b>{(cmp.file.eff * 100).toFixed(0)}%</b>
+                  {cmp.milk && <> · Milk-run <b>{(cmp.milk.eff * 100).toFixed(0)}%</b></>}
+                </span>
+                <span>
+                  Travel&nbsp;· Actual <b>{(cmp.actual.trv * 100).toFixed(0)}%</b> · File{' '}
+                  <b>{(cmp.file.trv * 100).toFixed(0)}%</b>
+                  {cmp.milk && <> · Milk-run <b>{(cmp.milk.trv * 100).toFixed(0)}%</b></>}
+                </span>
+              </div>
+            )}
+            <div className="mode-toggle map-layout-toggle">
+              <button
+                className={mapLayout === 'stacked' ? 'active' : ''}
+                onClick={() => setMapLayout('stacked')}
+              >
+                Stacked
+              </button>
+              <button
+                className={mapLayout === 'side' ? 'active' : ''}
+                onClick={() => setMapLayout('side')}
+              >
+                Side by side
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="map-row">
+          <div className="map-pane">
+            {appMode === 'plan' && plan && plan.mode === 'weekly' && (
+              <div className="day-tabs">
+                {plan.dayOrder.map((d) => {
+                  const n = plan.days[d].clusters.reduce(
+                    (s, c) => s + c.stops.length,
+                    0
+                  );
+                  return (
+                    <button
+                      key={d}
+                      className={d === activeDay ? 'active' : ''}
+                      onClick={() => setActiveDay(d)}
+                    >
+                      {d} ({n})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {appMode === 'actual' && reassembled && (
+              <div className="map-label">Actual tours — from file</div>
+            )}
+            <MapView
+              dayPlan={appMode === 'plan' ? activeDayPlan : tourDayPlan}
+              showZones={appMode === 'plan'}
+              sync={
+                appMode === 'actual' && reassembled
+                  ? { registry: syncRegistry, flag: syncFlag }
+                  : null
+              }
+            />
+            {appMode === 'plan' && !plan && (
+              <div className="map-empty">
+                Load patients, set your shifts, then press GO
+              </div>
+            )}
+            {appMode === 'actual' && !tourDayPlan && (
+              <div className="map-empty">Upload tour CSV files to begin</div>
+            )}
+          </div>
+          {appMode === 'actual' && reassembled && (
             <div className="map-pane">
               <div className="map-label">
                 Re-assembled — same as file
@@ -965,13 +1025,13 @@ export default function App() {
               <MapView
                 dayPlan={{ clusters: reClusters('file') }}
                 showZones={true}
-                scrollZoom={false}
                 editable={editMode}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
+                sync={{ registry: syncRegistry, flag: syncFlag }}
               />
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

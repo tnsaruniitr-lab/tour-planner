@@ -54,12 +54,62 @@ function FitBounds({ clusters }) {
   return null;
 }
 
+// Ctrl/Cmd + wheel zooms (toward the cursor); a plain wheel scrolls the page,
+// so the map never hijacks the page scroll.
+function CtrlWheelZoom() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return; // plain scroll → page scrolls
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const ll = map.containerPointToLatLng(
+        L.point(e.clientX - r.left, e.clientY - r.top)
+      );
+      map.setZoomAround(ll, map.getZoom() + (e.deltaY < 0 ? 1 : -1));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [map]);
+  return null;
+}
+
+// Keep every linked map at the same centre + zoom (a shared registry + guard
+// flag prevent feedback loops). Lets two/three maps be compared at one scale.
+function SyncMaps({ sync }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!sync) return;
+    const { registry, flag } = sync;
+    registry.current.push(map);
+    const echo = () => {
+      if (flag.current) return;
+      flag.current = true;
+      const c = map.getCenter();
+      const z = map.getZoom();
+      registry.current.forEach((m) => {
+        if (m !== map) m.setView(c, z, { animate: false });
+      });
+      flag.current = false;
+    };
+    map.on('moveend', echo);
+    map.on('zoomend', echo);
+    return () => {
+      map.off('moveend', echo);
+      map.off('zoomend', echo);
+      registry.current = registry.current.filter((m) => m !== map);
+    };
+  }, [map, sync]);
+  return null;
+}
+
 export default function MapView({
   dayPlan,
   showZones = true,
-  scrollZoom = true,
   editable = false,
   onMoveStop,
+  sync = null,
 }) {
   const clusters = dayPlan?.clusters || [];
 
@@ -67,7 +117,7 @@ export default function MapView({
     <MapContainer
       center={LONDON}
       zoom={12}
-      scrollWheelZoom={scrollZoom}
+      scrollWheelZoom={false}
       className="leaflet-container"
     >
       <TileLayer
@@ -76,6 +126,8 @@ export default function MapView({
         subdomains="abcd"
       />
       <FitBounds clusters={clusters} />
+      <CtrlWheelZoom />
+      <SyncMaps sync={sync} />
 
       {showZones &&
         clusters.map((c) => (

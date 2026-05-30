@@ -680,6 +680,45 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .map-pane + .map-pane {
   border-top: 3px solid var(--line);
 }
+.map-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.metrics-strip {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #444;
+  flex-wrap: wrap;
+}
+.metrics-strip b {
+  font-variant-numeric: tabular-nums;
+  color: #111;
+}
+.map-row {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.map-area.side .map-row {
+  flex-direction: row;
+  overflow-x: auto;
+}
+.map-area.side .map-pane {
+  flex: 1 1 0;
+  min-width: 340px;
+  height: 82vh;
+}
+.map-area.side .map-pane + .map-pane {
+  border-top: none;
+  border-left: 3px solid var(--line);
+}
 .map-area .leaflet-container {
   height: 100%;
   width: 100%;
