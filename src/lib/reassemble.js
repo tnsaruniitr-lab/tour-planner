@@ -3,9 +3,6 @@ import { hhmmToMin } from './schedule';
 import { clusterColor } from './colors';
 import { mergeSamePatientRuns } from './stops';
 
-// Of a shift's length, the share assumed available for service work.
-const SERVICE_SHARE = 0.85;
-
 function fmtHours(h) {
   return (Number.isInteger(h) ? h : Number(h.toFixed(1))) + 'h';
 }
@@ -33,29 +30,25 @@ function poolToPatients(visits, prefix) {
   });
 }
 
-// Build the shift roster for one period, per the chosen staffing mode.
-function buildRoster(period, periodTours, patients, opts) {
+// When the period's real work starts (earliest actual visit), so a re-assembled
+// morning tour reads as morning and an evening tour reads as evening — instead
+// of every tour being drawn from a fixed 08:00.
+function periodStartMin(periodTours) {
+  const times = periodTours
+    .flatMap((t) => t.visits.map((v) => hhmmToMin(v.visitTime)))
+    .filter((m) => m > 0);
+  return times.length ? Math.min(...times) : 480;
+}
+
+// Build the shift roster for one period: one shift per tour the file ran, each
+// the file tour's own length, all starting when the period's work begins.
+function buildRoster(periodTours, patients) {
   if (!patients.length) return [];
-
-  if (opts.mode === 'file') {
-    return periodTours.map((t) => {
-      const len = t.shiftDuration || 360;
-      return { startMin: 480, lengthMin: len, label: fmtHours(len / 60) };
-    });
-  }
-
-  // fewest: minimum nurse count within a max shift length
-  const lengthMin = Math.max(30, Math.round(opts.maxHours * 60));
-  const totalLoad = patients.reduce(
-    (s, p) => s + p.visitsPerDay * p.serviceTime,
-    0
-  );
-  const n = Math.max(1, Math.ceil(totalLoad / (lengthMin * SERVICE_SHARE)));
-  return Array.from({ length: n }, () => ({
-    startMin: 480,
-    lengthMin,
-    label: fmtHours(opts.maxHours),
-  }));
+  const startMin = periodStartMin(periodTours);
+  return periodTours.map((t) => {
+    const len = t.shiftDuration || 360;
+    return { startMin, lengthMin: len, label: fmtHours(len / 60) };
+  });
 }
 
 // Re-assemble one day's actual visits into clean circular tours.
@@ -80,8 +73,8 @@ export async function reassembleDay(tours, opts) {
     'e'
   );
 
-  const morningShifts = buildRoster('morning', morningTours, morningPatients, opts);
-  const eveningShifts = buildRoster('evening', eveningTours, eveningPatients, opts);
+  const morningShifts = buildRoster(morningTours, morningPatients);
+  const eveningShifts = buildRoster(eveningTours, eveningPatients);
 
   // Cap slack lets the clustering favour compact, round zones over an exact
   // capacity fit — tours may run slightly over shift.
@@ -119,10 +112,10 @@ export async function reassembleDay(tours, opts) {
   };
 }
 
-// Run both staffing modes for the day (sequentially, to stay gentle on the
-// OSRM server) — returns one result per mode.
+// Re-assemble the day into circular tours, keeping the file's nurse count and
+// shift lengths. Returns the single 'file' plan (the milk-run optimisation is
+// derived from it in the app).
 export async function reassembleAll(tours, baseOpts) {
-  const file = await reassembleDay(tours, { ...baseOpts, mode: 'file' });
-  const fewest = await reassembleDay(tours, { ...baseOpts, mode: 'fewest' });
-  return { file, fewest };
+  const file = await reassembleDay(tours, baseOpts);
+  return { file };
 }

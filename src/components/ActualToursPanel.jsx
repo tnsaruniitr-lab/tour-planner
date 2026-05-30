@@ -284,22 +284,11 @@ export default function ActualToursPanel({
         <div className="section">
           <div className="section-title">Re-assemble into circular tours</div>
           <p className="note">
-            Re-plan the day's visits into clean circular tours — both staffing
-            modes at once (same-as-file and fewest-nurses). Morning/evening
-            kept separate; 2-visit patients kept with one nurse ≥ the gap
-            apart.
+            Re-plan the day's visits into clean circular tours — same nurse
+            count and shift lengths as the file. Morning/evening kept separate;
+            2-visit patients kept with one nurse ≥ the gap apart.
           </p>
           <div className="row">
-            <div className="field">
-              <label>Max shift length (h)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.5"
-                value={reForm.maxHours}
-                onChange={(e) => onReField('maxHours', e.target.value)}
-              />
-            </div>
             <div className="field">
               <label>Min gap (hours)</label>
               <input
@@ -318,7 +307,7 @@ export default function ActualToursPanel({
           >
             {reassembling
               ? 'Re-assembling…'
-              : 'Re-assemble — compare modes'}
+              : 'Re-assemble into circular tours'}
           </button>
 
           {reassembled && (
@@ -396,7 +385,6 @@ export default function ActualToursPanel({
                     <th />
                     <th>Actual</th>
                     <th>File</th>
-                    <th>Fewest</th>
                     <th>Milk-run</th>
                   </tr>
                 </thead>
@@ -405,39 +393,35 @@ export default function ActualToursPanel({
                     <td>Efficiency</td>
                     <td>{pct(compActEff)}</td>
                     <td>{pct(modeMetrics(reassembled.file).eff)}</td>
-                    <td>{pct(modeMetrics(reassembled.fewest).eff)}</td>
                     <td>{pct(modeMetrics(optFileResult).eff)}</td>
                   </tr>
                   <tr>
                     <td>Travel</td>
                     <td>{pct(compActTrvPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).travelPct)}</td>
-                    <td>{pct(modeMetrics(reassembled.fewest).travelPct)}</td>
                     <td>{pct(modeMetrics(optFileResult).travelPct)}</td>
                   </tr>
                   <tr>
                     <td>Waiting</td>
                     <td>{pct(compActWaitPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).waitPct)}</td>
-                    <td>{pct(modeMetrics(reassembled.fewest).waitPct)}</td>
                     <td>{pct(modeMetrics(optFileResult).waitPct)}</td>
                   </tr>
                   <tr>
                     <td>Tours</td>
                     <td>{compActTours.length}</td>
                     <td>{modeMetrics(reassembled.file).tours}</td>
-                    <td>{modeMetrics(reassembled.fewest).tours}</td>
                     <td>{modeMetrics(optFileResult).tours}</td>
                   </tr>
                 </tbody>
               </table>
               <p className="note">
                 Actual efficiency = service ÷ (service + travel + recorded
-                waiting from the file); re-planned modes are scheduled tight,
-                so they carry no waiting. <b>Milk-run</b> = the File plan with
+                waiting from the file); the re-planned tour is scheduled tight,
+                so it carries no waiting. <b>Milk-run</b> = the File plan with
                 each tour re-ordered into a clean loop (travel is a
                 straight-line×1.5 estimate, so read the trend). Toggle Morning /
-                Evening / Both above. A map for each mode shows below.
+                Evening / Both above; the map shows below.
               </p>
 
               {(() => {

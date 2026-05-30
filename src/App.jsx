@@ -157,7 +157,6 @@ export default function App() {
   const [effComputing, setEffComputing] = useState(false);
   const [reForm, setReForm] = useState({
     gapHours: 3,
-    maxHours: 8,
   });
   const [reassembled, setReassembled] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -174,10 +173,7 @@ export default function App() {
   const optimized = useMemo(
     () =>
       reassembled
-        ? {
-            file: optimizeClusters(reassembled.file.clusters, reGapMin),
-            fewest: optimizeClusters(reassembled.fewest.clusters, reGapMin),
-          }
+        ? { file: optimizeClusters(reassembled.file.clusters, reGapMin) }
         : null,
     [reassembled, reGapMin]
   );
@@ -587,7 +583,6 @@ export default function App() {
       const result = await reassembleAll(toursForDate, {
         cutoffMin: hhmmToMin(amPmCutoff),
         gapMin: Math.round((parseFloat(reForm.gapHours) || 3) * 60),
-        maxHours: parseFloat(reForm.maxHours) || 8,
       });
       setReassembled(result);
       setEditHistory([]); // fresh plan → clear undo history
@@ -842,20 +837,6 @@ export default function App() {
                 scrollZoom={false}
                 editable={editMode && routeView === 'auto'}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
-              />
-            </div>
-            <div className="map-pane">
-              <div className="map-label">
-                Re-assembled — fewest nurses
-                {routeView === 'milkrun' && <span className="map-hint">· milk-run optimised</span>}
-                {editMode && routeView === 'auto' && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
-              </div>
-              <MapView
-                dayPlan={{ clusters: reClusters('fewest') }}
-                showZones={true}
-                scrollZoom={false}
-                editable={editMode && routeView === 'auto'}
-                onMoveStop={(fromId, order, ll) => onReassignStop('fewest', fromId, order, ll)}
               />
             </div>
           </>
