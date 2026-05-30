@@ -33,6 +33,7 @@ import {
 import { reassembleAll } from './lib/reassemble';
 import { moveStop, aggregate } from './lib/editTours';
 import { optimizeClusters } from './lib/optimize';
+import { buildNurseMap, swapNurses } from './lib/nurseMap';
 
 const DEFAULT_FORM = {
   shiftStart: '08:00',
@@ -276,6 +277,22 @@ export default function App() {
     reMorningKeys.length > 0 && reMorningKeys.every((k) => hiddenTours[k]);
   const eveningHidden =
     reEveningKeys.length > 0 && reEveningKeys.every((k) => hiddenTours[k]);
+  // Map each proposed tour to a real nurse-shift (closest length, same period),
+  // held as editable state so it can be drag-swapped; resets when the plan or
+  // the AM/PM cutoff changes.
+  const autoNurseMap = useMemo(
+    () =>
+      reassembled
+        ? buildNurseMap(reassembled.file.clusters, toursForDate, hhmmToMin(amPmCutoff))
+        : {},
+    [reassembled, toursForDate, amPmCutoff]
+  );
+  const [nurseAssign, setNurseAssign] = useState({});
+  useEffect(() => setNurseAssign(autoNurseMap), [autoNurseMap]);
+  function onSwapNurse(idA, idB) {
+    setNurseAssign((m) => swapNurses(m, idA, idB));
+  }
+
   const reClusters = (mode) => {
     const src =
       routeView === 'milkrun' && optimized
@@ -283,9 +300,25 @@ export default function App() {
         : reassembled
         ? reassembled[mode].clusters
         : null;
-    return src
-      ? src.filter((c) => (c.period === 'morning' ? !morningHidden : !eveningHidden))
-      : [];
+    if (!src) return [];
+    let cl = src.filter((c) =>
+      c.period === 'morning' ? !morningHidden : !eveningHidden
+    );
+    // Linked selection: when one actual tour is picked, show only the proposed
+    // tour its nurse is mapped to (same period) — so all maps line up.
+    if (!allView && selectedTour) {
+      const selPeriod =
+        hhmmToMin(selectedTour.shiftStart) < hhmmToMin(amPmCutoff)
+          ? 'morning'
+          : 'evening';
+      const mappedId = Object.keys(nurseAssign).find(
+        (id) =>
+          nurseAssign[id]?.name === selectedTour.nurseName &&
+          nurseAssign[id]?.period === selPeriod
+      );
+      if (mappedId != null) cl = cl.filter((c) => String(c.id) === mappedId);
+    }
+    return cl;
   };
   const multiMap = appMode === 'actual' && !!reassembled;
 
@@ -803,6 +836,8 @@ export default function App() {
             optimized={optimized}
             routeView={routeView}
             onRouteViewChange={setRouteView}
+            nurseAssign={nurseAssign}
+            onSwapNurse={onSwapNurse}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}
@@ -855,6 +890,9 @@ export default function App() {
             <div className="map-pane">
               <div className="map-label">
                 Re-assembled — same as file
+                {!allView && selectedTour && (
+                  <span className="map-hint">· {selectedTour.nurseName}'s proposed tour</span>
+                )}
                 {routeView === 'milkrun' && <span className="map-hint">· milk-run optimised</span>}
                 {editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>

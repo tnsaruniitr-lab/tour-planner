@@ -51,6 +51,8 @@ export default function ActualToursPanel({
   optimized,
   routeView,
   onRouteViewChange,
+  nurseAssign,
+  onSwapNurse,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -59,6 +61,8 @@ export default function ActualToursPanel({
 }) {
   const [effType, setEffType] = useState('actual');
   const [compPeriod, setCompPeriod] = useState('both');
+  const [dragNurse, setDragNurse] = useState(null); // cluster id being dragged
+  const [dragOver, setDragOver] = useState(null); // cluster id hovered as drop target
   const totalVisits = toursForDate.reduce((s, t) => s + t.visits.length, 0);
   const totalStops = toursForDate.reduce((s, t) => s + countStops(t.visits), 0);
   // Milk-run = the File plan with each tour locally optimised into a clean loop.
@@ -424,6 +428,79 @@ export default function ActualToursPanel({
                 comparable. Toggle Morning / Evening / Both above; the map shows
                 below.
               </p>
+
+              {reassembled.file && Object.keys(nurseAssign || {}).length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="tour-group-title">Nurse assignment (drag to swap)</div>
+                  <p className="note" style={{ margin: '0 0 6px' }}>
+                    Each proposed tour is staffed by the closest-length nurse,
+                    kept within Morning/Evening. Drag a nurse onto another tour
+                    to swap (same period). Δ = how far the nurse's real shift is
+                    from the tour's length.
+                  </p>
+                  {['morning', 'evening'].map((period) => {
+                    const rows = (reassembled.file.clusters || [])
+                      .filter((c) => c.period === period && nurseAssign[c.id])
+                      .sort((a, b) => (b.shiftLengthMin || 0) - (a.shiftLengthMin || 0));
+                    if (!rows.length) return null;
+                    return (
+                      <div key={period}>
+                        <div className="tour-group-title" style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
+                          {period === 'morning' ? 'Morning' : 'Evening'}
+                        </div>
+                        {rows.map((c) => {
+                          const a = nurseAssign[c.id];
+                          const delta = Math.abs((a.nurseLen || 0) - (a.tourLen || 0));
+                          const col = delta <= 60 ? '#1a7f37' : delta <= 120 ? '#b26a00' : '#c0392b';
+                          return (
+                            <div
+                              key={c.id}
+                              onDragOver={(e) => { e.preventDefault(); setDragOver(c.id); }}
+                              onDragLeave={() => setDragOver((o) => (o === c.id ? null : o))}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (dragNurse != null && dragNurse !== c.id) onSwapNurse(dragNurse, c.id);
+                                setDragNurse(null);
+                                setDragOver(null);
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '3px 4px', borderRadius: 6,
+                                background: dragOver === c.id ? '#eef4ff' : 'transparent',
+                              }}
+                            >
+                              <span className="dot" style={{ background: c.color }} />
+                              <span style={{ width: 36, fontSize: 12, opacity: 0.75 }}>
+                                {fmtHrsShort(c.shiftLengthMin)}
+                              </span>
+                              <span style={{ opacity: 0.4 }}>←</span>
+                              <span
+                                draggable
+                                onDragStart={() => setDragNurse(c.id)}
+                                onDragEnd={() => { setDragNurse(null); setDragOver(null); }}
+                                title="Drag onto another tour to swap nurses"
+                                style={{
+                                  flex: 1, cursor: 'grab', background: '#f1f3f5',
+                                  border: '1px solid #dde1e6', borderRadius: 6,
+                                  padding: '2px 8px', fontSize: 12, display: 'flex',
+                                  justifyContent: 'space-between', gap: 8,
+                                  opacity: dragNurse === c.id ? 0.4 : 1,
+                                }}
+                              >
+                                <span>⠿ {obfuscateName(a.name)}</span>
+                                <span style={{ opacity: 0.55 }}>{fmtHrsShort(a.nurseLen)}</span>
+                              </span>
+                              <span style={{ width: 44, fontSize: 11, fontWeight: 600, color: col, textAlign: 'right' }}>
+                                Δ{fmtHrsShort(delta)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {(() => {
                 const f = modeMetrics(reassembled.file);
