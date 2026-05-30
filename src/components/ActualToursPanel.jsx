@@ -329,8 +329,8 @@ export default function ActualToursPanel({
               {editMode && (
                 <p className="note" style={{ margin: '0 0 8px' }}>
                   Edit on — drag a dot on a re-assembled map onto another tour to
-                  move it there. Undo steps back; Reset restores the auto plan.
-                  Editing works in the <b>Auto</b> view.
+                  move it there (works in both Auto and Milk-run). Undo steps
+                  back; Reset restores the auto plan.
                 </p>
               )}
               {optimized && (
@@ -354,7 +354,7 @@ export default function ActualToursPanel({
                   </div>
                   <p className="note" style={{ margin: '0 0 8px' }}>
                     {routeView === 'milkrun'
-                      ? 'Milk-run: each tour re-ordered into a clean loop (2-opt) and re-timed by the same scheduler as Auto — revisits woven in ≥ the gap apart, other patients served during the gap (no idle). Flip to Auto to edit.'
+                      ? 'Milk-run: each tour re-ordered into a clean loop (2-opt), revisits woven in ≥ the gap apart, travel on the same OSRM road-time basis as File. Drag dots to edit here too.'
                       : 'Auto: the re-assembled plan as planned. Flip to Milk-run to see each tour optimised into a circular route.'}
                   </p>
                 </>
@@ -419,9 +419,10 @@ export default function ActualToursPanel({
                 Actual efficiency = service ÷ (service + travel + recorded
                 waiting from the file); the re-planned tour is scheduled tight,
                 so it carries no waiting. <b>Milk-run</b> = the File plan with
-                each tour re-ordered into a clean loop (travel is a
-                straight-line×1.5 estimate, so read the trend). Toggle Morning /
-                Evening / Both above; the map shows below.
+                each tour re-ordered into a clean loop — travel measured on the
+                same OSRM road-time basis as File, so the columns are
+                comparable. Toggle Morning / Evening / Both above; the map shows
+                below.
               </p>
 
               {(() => {

@@ -170,13 +170,28 @@ export default function App() {
   // Recomputes whenever the plan changes (incl. after a manual drag) so the
   // optimised view always reflects the live assignment.
   const reGapMin = Math.round((parseFloat(reForm.gapHours) || 2.5) * 60);
-  const optimized = useMemo(
-    () =>
-      reassembled
-        ? { file: optimizeClusters(reassembled.file.clusters, reGapMin) }
-        : null,
-    [reassembled, reGapMin]
-  );
+  // Milk-run optimisation now uses OSRM road time (async), so it lives in state
+  // and is recomputed whenever the re-assembled plan or gap changes. Manual
+  // milk-run edits set it directly and persist (deps below don't change).
+  const [optimized, setOptimized] = useState(null);
+  useEffect(() => {
+    if (!reassembled) {
+      setOptimized(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const file = await optimizeClusters(reassembled.file.clusters, reGapMin);
+        if (!cancelled) setOptimized({ file });
+      } catch {
+        if (!cancelled) setOptimized(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reassembled, reGapMin]);
 
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
@@ -597,29 +612,41 @@ export default function App() {
   // reassign + reroute both, refresh metrics. Each move snapshots the prior
   // plan onto the undo stack.
   function onReassignStop(mode, fromId, order, ll) {
-    if (!editMode || !reassembled || !reassembled[mode]) return;
-    const clusters = moveStop(reassembled[mode].clusters, fromId, order, {
-      lat: ll[0],
-      lng: ll[1],
-    });
-    setEditHistory((h) => [...h, reassembled]);
-    setReassembled({
-      ...reassembled,
-      [mode]: aggregate({ ...reassembled[mode], clusters }),
-    });
+    if (!editMode || !reassembled) return;
+    const drop = { lat: ll[0], lng: ll[1] };
+    // Edit whichever view is shown: in milk-run, move within the optimised
+    // clusters (their stop orders match the dragged dot); in auto, the
+    // re-assembled clusters. Snapshot both for undo.
+    const editMilk = routeView === 'milkrun' && optimized && optimized[mode];
+    setEditHistory((h) => [...h, { reassembled, optimized }]);
+    if (editMilk) {
+      const clusters = moveStop(optimized[mode], fromId, order, drop);
+      setOptimized({ ...optimized, [mode]: clusters });
+    } else if (reassembled[mode]) {
+      const clusters = moveStop(reassembled[mode].clusters, fromId, order, drop);
+      setReassembled({
+        ...reassembled,
+        [mode]: aggregate({ ...reassembled[mode], clusters }),
+      });
+    }
   }
 
   // Undo the last manual move (multi-step), or discard all moves back to the
-  // freshly re-assembled plan. Both are instant — no recompute.
+  // freshly re-assembled plan. Snapshots capture both the auto and milk-run
+  // plans, so undo works whichever view the edit was made in.
   function onUndoEdit() {
     if (!editHistory.length) return;
-    setReassembled(editHistory[editHistory.length - 1]);
+    const prev = editHistory[editHistory.length - 1];
+    setReassembled(prev.reassembled);
+    setOptimized(prev.optimized);
     setEditHistory(editHistory.slice(0, -1));
   }
 
   function onResetEdits() {
     if (!editHistory.length) return;
-    setReassembled(editHistory[0]); // state before the first move = the auto plan
+    const first = editHistory[0]; // state before the first move
+    setReassembled(first.reassembled);
+    setOptimized(first.optimized);
     setEditHistory([]);
   }
 
@@ -829,13 +856,13 @@ export default function App() {
               <div className="map-label">
                 Re-assembled — same as file
                 {routeView === 'milkrun' && <span className="map-hint">· milk-run optimised</span>}
-                {editMode && routeView === 'auto' && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
+                {editMode && <span className="map-hint">· drag a dot onto another tour to reassign</span>}
               </div>
               <MapView
                 dayPlan={{ clusters: reClusters('file') }}
                 showZones={true}
                 scrollZoom={false}
-                editable={editMode && routeView === 'auto'}
+                editable={editMode}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
               />
             </div>

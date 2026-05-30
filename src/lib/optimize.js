@@ -5,7 +5,11 @@
 // keeps every tour inside its real shift window: morning stays morning.
 import { haversine, centroidLatLng, coverageRadiusKm } from './geo';
 import { simulateTour } from './schedule';
-import { straightLineMatrix } from './osrm';
+import { fetchTravelMatrix, straightLineMatrix } from './osrm';
+
+// Match the planner's travel buffer so milk-run travel is measured on the
+// SAME basis as the File plan (OSRM road time ×1.35, straight-line fallback).
+const BUFFER_PCT = 35;
 
 const SPEED_KMH = 30;
 const TRAFFIC = 1.5; // straight-line inflated to approximate road time
@@ -95,7 +99,7 @@ function clusterPatients(cluster) {
 }
 
 // Optimise one frozen tour into a milk-run loop, correctly timed.
-export function optimizeCluster(cluster, opts = {}) {
+export async function optimizeCluster(cluster, opts = {}) {
   const gapMin = opts.gapMin ?? 150; // 2.5h floor between a patient's two visits
   const patients = clusterPatients(cluster);
   if (patients.length < 2) return cluster;
@@ -108,8 +112,10 @@ export function optimizeCluster(cluster, opts = {}) {
 
   // 3) time it with the SAME interleaving scheduler the Auto plan uses — it
   //    serves other patients during a revisit's gap rather than idling, so the
-  //    clock never runs away past the shift.
-  const matrix = straightLineMatrix(order, SPEED_KMH, 50);
+  //    clock never runs away past the shift. Travel uses OSRM road time (same
+  //    basis as File) so the comparison is like-for-like.
+  let matrix = await fetchTravelMatrix(order, BUFFER_PCT);
+  if (!matrix) matrix = straightLineMatrix(order, SPEED_KMH, BUFFER_PCT);
   const start =
     cluster.shiftStartMin ??
     Math.min(...cluster.stops.map((s) => s.arrive ?? 480));
@@ -148,7 +154,8 @@ export function optimizeCluster(cluster, opts = {}) {
   };
 }
 
-// Optimise every tour in a list. Returns a new clusters array.
-export function optimizeClusters(clusters, gapMin) {
-  return (clusters || []).map((c) => optimizeCluster(c, { gapMin }));
+// Optimise every tour in a list (OSRM fetches run in parallel, like the
+// planner). Returns a new clusters array.
+export async function optimizeClusters(clusters, gapMin) {
+  return Promise.all((clusters || []).map((c) => optimizeCluster(c, { gapMin })));
 }
