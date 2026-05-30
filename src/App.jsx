@@ -33,6 +33,7 @@ import {
 import { reassembleAll } from './lib/reassemble';
 import { moveStop, aggregate } from './lib/editTours';
 import { optimizeClusters } from './lib/optimize';
+import { optimizeTravel } from './lib/minTravel';
 import { buildNurseMap, swapNurses } from './lib/nurseMap';
 import { buildInsights } from './lib/insights';
 
@@ -200,6 +201,30 @@ export default function App() {
     };
   }, [reassembled, reGapMin]);
 
+  // Min-travel mode: re-assign patients to cut total drive time (fixed shifts),
+  // then guard so it can never come out worse than milk-run on this data.
+  const [minTravel, setMinTravel] = useState(null);
+  useEffect(() => {
+    if (!reassembled || !optimized) {
+      setMinTravel(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const mt = await optimizeTravel(reassembled.file, { gapMin: reGapMin });
+        const mtTrv = mt.reduce((s, c) => s + (c.travelMin || 0), 0);
+        const milkTrv = (optimized.file || []).reduce((s, c) => s + (c.travelMin || 0), 0);
+        if (!cancelled) setMinTravel(mtTrv <= milkTrv ? mt : optimized.file);
+      } catch {
+        if (!cancelled) setMinTravel(optimized.file);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reassembled, reGapMin, optimized]);
+
   const activeDayPlan = plan ? plan.days[activeDay] : null;
 
   const tours = useMemo(() => buildTours(Object.values(tourRows)), [tourRows]);
@@ -343,27 +368,25 @@ export default function App() {
     const m = optimized?.file || [];
     const mS = sumC(m, (c) => c.serviceMin);
     const mT = sumC(m, (c) => c.travelMin);
+    const mt = minTravel || [];
+    const tS = sumC(mt, (c) => c.serviceMin);
+    const tT = sumC(mt, (c) => c.travelMin);
     return {
       actual: { eff: aSvc / aTot, trv: aTrv / aTot },
       file: { eff: ratio(fS, fT), trv: ratio(fT, fS) },
       milk: m.length ? { eff: ratio(mS, mT), trv: ratio(mT, mS) } : null,
+      mt: mt.length ? { eff: ratio(tS, tT), trv: ratio(tT, tS) } : null,
     };
-  }, [reassembled, optimized, toursForDate]);
+  }, [reassembled, optimized, toursForDate, minTravel]);
 
-  const reClusters = (mode) => {
-    const src =
-      routeView === 'milkrun' && optimized
-        ? optimized[mode]
-        : reassembled
-        ? reassembled[mode].clusters
-        : null;
+  // Shared filter for any re-planned clusters set: single-tour selection
+  // (show only the selected nurse's mapped tour), then the symmetric shift
+  // selector (hide a tour when its mapped nurse is unchecked).
+  const filterClusters = (src) => {
     if (!src) return [];
     const cutoffM = hhmmToMin(amPmCutoff);
     const periodOf = (t) =>
       hhmmToMin(t.shiftStart) < cutoffM ? 'morning' : 'evening';
-
-    // Single-tour selection takes precedence: show only the proposed tour the
-    // selected nurse is mapped to, so all maps line up.
     if (!allView && selectedTour) {
       const selPeriod = periodOf(selectedTour);
       const mappedId = Object.keys(nurseAssign).find(
@@ -373,10 +396,6 @@ export default function App() {
       );
       if (mappedId != null) return src.filter((c) => String(c.id) === mappedId);
     }
-
-    // Symmetric shift selector: hide a proposed tour when its mapped nurse's
-    // actual shift is unchecked (mirrors the actual map). Falls back to the
-    // whole-period master hide for any unmapped cluster.
     return src.filter((c) => {
       const a = nurseAssign[c.id];
       if (a) {
@@ -388,6 +407,15 @@ export default function App() {
       return c.period === 'morning' ? !morningHidden : !eveningHidden;
     });
   };
+  const reClusters = (mode) =>
+    filterClusters(
+      routeView === 'milkrun' && optimized
+        ? optimized[mode]
+        : reassembled
+        ? reassembled[mode].clusters
+        : null
+    );
+  const mtClusters = () => filterClusters(minTravel);
 
   // ---- Planner handlers ----
   function onField(name, value) {
@@ -926,6 +954,7 @@ export default function App() {
             onResetNurse={onResetNurse}
             canUndoNurse={nurseHistory.length > 0}
             insights={insights}
+            minTravel={minTravel}
             editMode={editMode}
             onToggleEditMode={() => setEditMode((v) => !v)}
             onUndoEdit={onUndoEdit}
@@ -946,11 +975,13 @@ export default function App() {
                   Eff&nbsp;· Actual <b>{(cmp.actual.eff * 100).toFixed(0)}%</b> · File{' '}
                   <b>{(cmp.file.eff * 100).toFixed(0)}%</b>
                   {cmp.milk && <> · Milk-run <b>{(cmp.milk.eff * 100).toFixed(0)}%</b></>}
+                  {cmp.mt && <> · Min-travel <b>{(cmp.mt.eff * 100).toFixed(0)}%</b></>}
                 </span>
                 <span>
                   Travel&nbsp;· Actual <b>{(cmp.actual.trv * 100).toFixed(0)}%</b> · File{' '}
                   <b>{(cmp.file.trv * 100).toFixed(0)}%</b>
                   {cmp.milk && <> · Milk-run <b>{(cmp.milk.trv * 100).toFixed(0)}%</b></>}
+                  {cmp.mt && <> · Min-travel <b>{(cmp.mt.trv * 100).toFixed(0)}%</b></>}
                 </span>
               </div>
             )}
@@ -1027,6 +1058,21 @@ export default function App() {
                 showZones={true}
                 editable={editMode}
                 onMoveStop={(fromId, order, ll) => onReassignStop('file', fromId, order, ll)}
+                sync={{ registry: syncRegistry, flag: syncFlag }}
+              />
+            </div>
+          )}
+          {appMode === 'actual' && reassembled && minTravel && (
+            <div className="map-pane">
+              <div className="map-label">
+                Min-travel — least driving
+                {!allView && selectedTour && (
+                  <span className="map-hint">· {selectedTour.nurseName}'s tour</span>
+                )}
+              </div>
+              <MapView
+                dayPlan={{ clusters: mtClusters() }}
+                showZones={true}
                 sync={{ registry: syncRegistry, flag: syncFlag }}
               />
             </div>

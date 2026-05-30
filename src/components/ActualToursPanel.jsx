@@ -63,6 +63,7 @@ export default function ActualToursPanel({
   onResetNurse,
   canUndoNurse,
   insights,
+  minTravel,
   editMode,
   onToggleEditMode,
   onUndoEdit,
@@ -79,6 +80,8 @@ export default function ActualToursPanel({
   const totalStops = toursForDate.reduce((s, t) => s + countStops(t.visits), 0);
   // Milk-run = the File plan with each tour locally optimised into a clean loop.
   const optFileResult = optimized ? { clusters: optimized.file } : null;
+  // Min-travel = re-assigned for least driving (fixed shifts).
+  const mtResult = minTravel ? { clusters: minTravel } : null;
 
   // Morning/Evening classification by shift start vs. the cutoff.
   const cutoff = hhmmToMin(amPmCutoff);
@@ -410,6 +413,7 @@ export default function ActualToursPanel({
                     <th>Actual</th>
                     <th>File</th>
                     <th>Milk-run</th>
+                    {mtResult && <th>Min-travel</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -418,24 +422,28 @@ export default function ActualToursPanel({
                     <td>{pct(compActEff)}</td>
                     <td>{pct(modeMetrics(reassembled.file).eff)}</td>
                     <td>{pct(modeMetrics(optFileResult).eff)}</td>
+                    {mtResult && <td>{pct(modeMetrics(mtResult).eff)}</td>}
                   </tr>
                   <tr>
                     <td>Travel</td>
                     <td>{pct(compActTrvPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).travelPct)}</td>
                     <td>{pct(modeMetrics(optFileResult).travelPct)}</td>
+                    {mtResult && <td>{pct(modeMetrics(mtResult).travelPct)}</td>}
                   </tr>
                   <tr>
                     <td>Waiting</td>
                     <td>{pct(compActWaitPct)}</td>
                     <td>{pct(modeMetrics(reassembled.file).waitPct)}</td>
                     <td>{pct(modeMetrics(optFileResult).waitPct)}</td>
+                    {mtResult && <td>{pct(modeMetrics(mtResult).waitPct)}</td>}
                   </tr>
                   <tr>
                     <td>Tours</td>
                     <td>{compActTours.length}</td>
                     <td>{modeMetrics(reassembled.file).tours}</td>
                     <td>{modeMetrics(optFileResult).tours}</td>
+                    {mtResult && <td>{modeMetrics(mtResult).tours}</td>}
                   </tr>
                 </tbody>
               </table>
